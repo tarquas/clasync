@@ -2,15 +2,20 @@ const Clasync = require('../..');
 const DbMongo = require('../../db/mongo');
 const DbMongoModel = require('../../db/mongo/model');
 const util = require('util');
+const mongodb = require('mongodb');
+
+const MongoClient = mongodb.MongoClient;
 
 class MqMongoModel extends DbMongoModel {
   get schema() {
     return new this.Schema({
       _id: String,
       date: Date,
+      curDate: this.Schema.Types.Mixed,
       expires: {type: Date, expires: 1},
       queue: String,
-      message: this.Schema.Types.Mixed
+      message: this.Schema.Types.Mixed,
+      nRequeues: Number
     }, {
       collection: this.mq.queueName
     })
@@ -20,8 +25,8 @@ class MqMongoModel extends DbMongoModel {
 }
 
 class MqMongo extends Clasync {
-  // db - DbMongo instance to use for queues or config to create DbMongo
-  // capDb - DbMongo instance to use for events or config to create DbMongo
+  // db - config to create DbMongo instance to use for queues
+  // capDb - config to create DbMongo instance to use for events
 
   static get type() { return 'mq'; }
 
@@ -67,22 +72,23 @@ class MqMongo extends Clasync {
     if (this.finishing) return null;
     if (this.waitPubsubReady) await this.waitPubsubReady;
 
-    const id = this.db.newShortId();
-    const now = new Date();
+    const id = this.dbMongo.newShortId();
+
+    const item = await this.model.findOneAndUpdate({curDate: true}, {
+      $currentDate: {date: true, curDate: true}, $set: {
+        _id: id,
+        queue,
+        message: payload,
+        nRequeues: 0
+      }
+    }, {upsert: true, new: true}).lean().exec();
 
     if (opts.temp) {
-      opts.expires = new Date(+now + this.$.visibilityMsec);
+      await this.model.update({_id: id}, {$set: {
+        expires: new Date(+item.curDate + this.$.visibilityMsec)
+      }}).lean().exec();
     }
 
-    const item = new this.Model({
-      _id: id,
-      queue,
-      message: payload,
-      date: now,
-      expires: opts.expires
-    });
-
-    await item.save();
     await this.signalQueue(queue);
     return item;
   }
@@ -92,12 +98,13 @@ class MqMongo extends Clasync {
     return removed;
   }
 
-  async requeue(id) {
-    const now = new Date();
+  async requeue(id, err) {
+    const upd = {$currentDate: {date: true}};
+    if (err) upd.$inc = {nRequeues: 1};
 
     const item = await this.model.findOneAndUpdate(
       {_id: id},
-      {$set: {date: now}},
+      upd,
       {select: {queue: 1}}
     ).lean().exec();
 
@@ -105,8 +112,8 @@ class MqMongo extends Clasync {
     return item;
   }
 
-  async extend(id) {
-    const now = +new Date();
+  async extend(id, nowDate) {
+    const now = +(nowDate || new Date());
 
     await this.model.update(
       {_id: id},
@@ -114,8 +121,8 @@ class MqMongo extends Clasync {
     ).exec();
   }
 
-  async hide(id) {
-    const now = +new Date();
+  async hide(id, nowDate) {
+    const now = +(nowDate || new Date());
 
     await this.model.update(
       {_id: id},
@@ -127,7 +134,7 @@ class MqMongo extends Clasync {
     if (object.halt) return;
 
     if (object.id) {
-      await this.hide(object.id);
+      await this.hide(object.id, +new Date() + object.sync);
     }
 
     if (object.halt) return;
@@ -171,10 +178,31 @@ class MqMongo extends Clasync {
     return true;
   }
 
+  async getNow() {
+    const start = process.uptime();
+
+    const item = await util.promisify(this.pubsubColl.findOneAndUpdate).call(
+      this.pubsubColl,
+      {_id: this.$.nullObjectId},
+      {$currentDate: {curDate: true}},
+      {upsert: true, returnOriginal: false}
+    );
+
+    const diff = process.uptime() - start;
+
+    if (diff >= this.$.lagLatencySec) {
+      throw new Error('MQ PubSub Sync: network latency is too big');
+    }
+
+    const curDate = this.$.get(item, 'value', 'curDate');
+    return curDate;
+  }
+
   worker(queue, onData) {
     const workerId = this.workerIdNext++;
 
     const object = {
+      sync: null,
       resume: null,
       wait: null,
       halt: false,
@@ -187,6 +215,7 @@ class MqMongo extends Clasync {
 
     object.promise = new Promise(async (resolve, reject) => { // eslint-disable-line
       try {
+        object.sync = (await this.getNow()) - new Date();
         object.queue = queue;
 
         loop: while (!object.halt) { // eslint-disable-line
@@ -196,13 +225,22 @@ class MqMongo extends Clasync {
             });
           }
 
-          const now = +new Date();
+          const now = +new Date() + object.sync;
+          const start = process.uptime();
 
           const item = await this.model.findOneAndUpdate(
             {queue, date: {$lt: new Date(now + this.$.accuracyMsec)}},
-            {$set: {date: new Date(now + this.$.visibilityMsec)}},
-            {sort: {date: 1}}
+            {
+              $currentDate: {curDate: true},
+              $set: {date: new Date(now + this.$.visibilityMsec)}
+            },
+            {sort: {date: 1}, new: true}
           ).lean().exec();
+
+          const diff = process.uptime() - start;
+
+          const curDate = item ? item.curDate : (await this.getNow());
+          if (diff < this.$.lagLatencySec) object.sync = curDate - new Date();
 
           if (!item) {
             this.setFreeWorker(workerId);
@@ -237,7 +275,9 @@ class MqMongo extends Clasync {
                 await this.requeue(object.id);
               }
             } catch (err) {
-              await this.requeue(object.id);
+              if ((item.nRequeues | 0) < this.$.maxRequeuesOnError) {
+                await this.requeue(object.id, true);
+              }
 
               if (!(await this.error(err, {
                 id: queue,
@@ -265,7 +305,7 @@ class MqMongo extends Clasync {
 
   async rpc(queue, payload) {
     if (this.finishing) return undefined;
-    const rpcId = this.db.newShortId();
+    const rpcId = this.dbMongo.newShortId();
 
     let response;
     const waitResponse = new Promise((resolve) => { response = resolve; });
@@ -360,7 +400,7 @@ class MqMongo extends Clasync {
 
     while (!this.finishing) {
       try {
-        const {db} = this.capDb.conn;
+        const db = this.capDbMongo.db();
         let coll = this.pubsubColl;
 
         if (!coll) {
@@ -370,7 +410,6 @@ class MqMongo extends Clasync {
 
             {
               capped: true,
-              autoIndexId: true,
               size: this.$.pubsubCapSize,
               strict: false
             }
@@ -394,7 +433,11 @@ class MqMongo extends Clasync {
         }
 
         if (!this.latest) {
-          const docs = await util.promisify(coll.insert).call(coll, {dummy: true}, {safe: true});
+          const docs = await util.promisify(coll.insert).call(coll, {
+            _id: this.$.nullObjectId,
+            dummy: true
+          }, {safe: true});
+
           [this.latest] = docs.ops;
         }
 
@@ -404,7 +447,7 @@ class MqMongo extends Clasync {
           this.waitPubsubReady = null;
         }
 
-        if (this.finishing || this.capDb.conn._closeCalled) return;
+        if (this.finishing || this.capDbMongo._closeCalled) return;
 
         const cursor = coll.find(
           { _id: { $gt: this.latest._id }},
@@ -477,7 +520,7 @@ class MqMongo extends Clasync {
 
         break;
       } catch (err) {
-        if (this.$.get(this.capDb, 'conn', '_closeCalled')) return;
+        if (this.$.get(this.capDbMongo, '_closeCalled')) return;
 
         if (prevErr !== err.stack) {
           this.$.throw(err, 'MQ PubSub Loop Error');
@@ -491,19 +534,16 @@ class MqMongo extends Clasync {
   }
 
   async init(sub) {
-    if (!(this.db instanceof DbMongo)) {
-      this.db = await new DbMongo(this.db);
-      this.db[this.$.instance].detached = true;
-    }
+    this.dbMongo = await new DbMongo(this.db);
+    this.dbMongo[this.$.instance].detached = true;
 
-    if (!this.capDb) this.capDb = this.db;
+    this.capDbMongo = await util.promisify(MongoClient.connect).call(
+      MongoClient,
+      this.capDb ? this.capDb.connString : this.db.connString,
+      {forceServerObjectId: true}
+    );
 
-    if (!(this.capDb instanceof DbMongo)) {
-      this.capDb = await new DbMongo(this.capDb);
-      this.capDb[this.$.instance].detached = true;
-    }
-
-    await sub({mqModel: MqMongoModel.sub({db: this.db})});
+    await sub({mqModel: MqMongoModel.sub({db: this.dbMongo})});
     this.Model = this.model = this.mqModel.model;
 
     this.subs = {};
@@ -553,12 +593,12 @@ class MqMongo extends Clasync {
 
     this.workerProlongVisibilityBound = null;
 
-    //if (this.db[this.$.instance].detached)
-    await this.$.finish(this.db, reason);
-    //if (this.capDb[this.$.instance].detached)
-    await this.$.finish(this.capDb, reason);
+    await this.$.finish(this.dbMongo, reason);
+    this.capDbMongo.close();
   }
 }
+
+MqMongo.nullObjectId = DbMongo.ObjectId('000000000000000000000000');
 
 MqMongo.pubsubRetryMsec = 2000;
 
@@ -568,5 +608,9 @@ MqMongo.tailableRetryInterval = 2000;
 
 MqMongo.accuracyMsec = MqMongo.visibilityMsec / 3;
 MqMongo.prolongMsec = MqMongo.accuracyMsec;
+MqMongo.nowSyncMsec = MqMongo.accuracyMsec / 2;
+MqMongo.lagLatencySec = MqMongo.nowSyncMsec / 4000;
+
+MqMongo.maxRequeuesOnError = 3;
 
 module.exports = MqMongo;

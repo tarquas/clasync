@@ -38,7 +38,7 @@ class Discovery extends MqDisp {
     const info = this.instances[instId];
     if (!info) return;
     delete this.instances[instId];
-    this.nInstances++;
+    this.nInstances--;
   }
 
   async keepAlive(info = {}) {
@@ -66,6 +66,8 @@ class Discovery extends MqDisp {
     instId,
     info
   }) {
+    if (!this.instances) return;
+
     if (!this.instances[instId]) {
       this.instances[instId] = {};
       this.nInstances++;
@@ -77,6 +79,7 @@ class Discovery extends MqDisp {
   async ['SUB instanceDown']({
     instId
   }) {
+    if (!this.instances) return;
     this.instanceDown({instId, reason: 'managedShutdown'});
   }
 
@@ -96,6 +99,7 @@ class Discovery extends MqDisp {
   }
 
   async ['SUB pollInstances']() {
+    if (!this.instances) return;
     const info = this.instances[this.instId];
     if (!info) return;
     await this.pub('instanceUp', {instId: this.instId, info});
@@ -142,8 +146,8 @@ class Discovery extends MqDisp {
       keepAliveBound: this.keepAlive.bind(this)
     });
 
-    await this.pub('pollInstances', {});
     Object.assign(this.info, {createdAt: new Date()});
+    await this.pub('pollInstances', {});
     this.keepAliveBound(this.info);
   }
 
