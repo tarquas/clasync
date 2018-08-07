@@ -1,4 +1,6 @@
-const ClasyncFunc = {
+let ClasyncFunc;
+
+ClasyncFunc = {
   echo(arg) {
     return arg;
   },
@@ -31,6 +33,252 @@ const ClasyncFunc = {
 
     p[last] = value;
     return p;
+  },
+
+  makeObject(parts) {
+    const result = Object.assign({}, ...parts);
+    return result;
+  },
+
+  objectOrUndefined: {object: 1, undefined: 1},
+
+  uniqKeys(what, def) {
+    const keys = ClasyncFunc.makeObject(what.map(i => (
+      i instanceof Array ? Object.assign({}, ...i.map(j => ({[j]: def}))) :
+      typeof i in ClasyncFunc.objectOrUndefined ? i : ({[i]: def})
+    )));
+
+    return keys;
+  },
+
+  chunk(array, length) {
+    const chunks = ClasyncFunc.range(0, array.length, length);
+    ClasyncFunc.maps(chunks, from => array.slice(from, from + length));
+    return chunks;
+  },
+
+  clone(obj) {
+    if (obj instanceof Array) return obj.slice();
+    if (typeof obj === 'object') return {...obj};
+    return obj;
+  },
+
+  cloneDeep(obj) {
+    if (obj instanceof Array) return obj.map(ClasyncFunc.cloneDeep);
+
+    if (typeof obj === 'object') return ClasyncFunc.makeObject(
+      Object.entries(obj)
+      .map(([k, v]) => ({[k]: ClasyncFunc.cloneDeep(v)}))
+    );
+
+    return obj;
+  },
+
+  defaults(obj, ...defs) {
+    for (const def of defs) {
+      Object.assign(obj, ...Object.entries(def).map(([k, v]) => k in obj ? null: ({[k]: v})));
+    }
+
+    return obj;
+  },
+
+  extend(obj, ...ext) {
+    const result = Object.assign(obj, ...ext);
+    return result;
+  },
+
+  flatten(array) {
+    if (!(array instanceof Array)) return array;
+    return [].concat(...array);
+  },
+
+  flattenDeep(array) {
+    if (!(array instanceof Array)) return array;
+    return [].concat(...array.map(deep => ClasyncFunc.flattenDeep(deep)));
+  },
+
+  fromPairs(pairs) {
+    const result = ClasyncFunc.makeObject(pairs.map(([k, v]) => ({[k]: v})));
+    return result;
+  },
+
+  groupBy(array, func) {
+    const groups = array.map(typeof func === 'function' ? func : item => item[func]);
+    const result = ClasyncFunc.inverts(groups, array);
+    return result;
+  },
+
+  hasKeys(obj) {
+    for (const key in obj) return true;
+    return false;
+  },
+
+  invert(obj) {
+    const result = ClasyncFunc.makeObject(Object.entries(obj).map(([k, v]) => ({[v]: k})));
+    return result;
+  },
+
+  inverts(obj, map) {
+    const ents = Object.entries(obj);
+    const groups = ClasyncFunc.makeObject(ents.map(([k, v]) => ({[v]: true})));
+    ClasyncFunc.mapsValues(groups, () => []);
+
+    if (!map) {
+      for (const [k, v] of ents) groups[v].push(k);
+    } else {
+      for (const [k, v] of ents) groups[v].push(map[k]);
+    }
+
+    return groups;
+  },
+
+  maps(array, func) {
+    for (let i = 0; i < array.length; i++) {
+      const value = func.call(array, array[i], i, array);
+      array[i] = value;
+    }
+
+    return array;
+  },
+
+  mapKeys(obj, func) {
+    const result = ClasyncFunc.makeObject(Object.entries(obj).map(([k, v]) => {
+      const key = func.call(obj, k, v, obj);
+      const result = ({[key]: v});
+      return result;
+    }));
+
+    return result;
+  },
+
+  mapValues(obj, func) {
+    const result = ClasyncFunc.makeObject(Object.entries(obj).map(([k, v]) => {
+      const value = func.call(obj, k, v, obj);
+      const result = ({[k]: value});
+      return result;
+    }));
+
+    return result;
+  },
+
+  mapsKeys(obj, func) {
+    for (const [k, v] of Object.entries(obj)) {
+      const key = func.call(obj, k, v, obj);
+      delete obj[k];
+      obj[key] = v;
+    }
+
+    return obj;
+  },
+
+  mapsValues(obj, func) {
+    for (const [k, v] of Object.entries(obj)) {
+      const value = func.call(obj, k, v, obj);
+      obj[k] = value;
+    }
+
+    return obj;
+  },
+
+  omit(from, ...what) {
+    const keys = ClasyncFunc.uniqKeys(what);
+
+    const result = ClasyncFunc.makeObject(Object.entries(from).map(([k, v]) => (
+      k in keys ? null : ({[k]: v})
+    )));
+
+    return result;
+  },
+
+  omits(from, ...what) {
+    const keys = ClasyncFunc.uniqKeys(what);
+    for (const key in keys) delete from[key];
+    return from;
+  },
+
+  omitBy(from, func) {
+    const keys = ClasyncFunc.pickBy(from, func);
+    const result = ClasyncFunc.omit(from, keys);
+    return result;
+  },
+
+  pick(from, ...what) {
+    const keys = ClasyncFunc.uniqKeys(what);
+
+    const result = ClasyncFunc.makeObject(Object.keys(keys).map(key => (
+      key in from ? ({[key]: from[key]}) : null
+    )));
+
+    return result;
+  },
+
+  pickBy(from, func) {
+    const result = ClasyncFunc.makeObject(
+      Object.entries(from)
+      .filter(([k, v]) => func.call(from, k, v, from))
+      .map(([k, v]) => ({[k]: v}))
+    );
+
+    return result;
+  },
+
+  range(sfrom, sto, step) {
+    let from = sfrom;
+    let to = sto;
+
+    if (to == null) {
+      to = from;
+      from = 0;
+    }
+
+    const diff = to - from;
+    const count = Math.abs(step ? Math.ceil(diff / step) : diff);
+    let inc = step || 1;
+    if ((inc < 0) ^ (to < from)) inc = -inc;
+    let value = from - inc;
+    const result = ClasyncFunc.maps(Array(count), () => (value += inc));
+    return result;
+  },
+
+  rxDotSplit: /^([^\.]*)(?:\.(.*))?$/,
+
+  setTree(obj, to, opts) {
+    if (typeof obj !== 'object') return obj;
+    const o = opts || {};
+    const r = to || {};
+
+    for (const [k, v] of Object.entries(obj)) {
+      const [, key, rest] = k.match(ClasyncFunc.rxDotSplit) || [];
+      const isObj = rest || (o.deep && typeof v === 'object');
+
+      if (isObj) {
+        ClasyncFunc.setTree(
+          rest ? {[rest]: v} : v,
+          typeof r[key] === 'object' ? r[key] : (r[key] = {}),
+          opts
+        );
+      } else {
+        if (o.unset) {
+          delete r[key];
+        } else {
+          r[key] = v;
+        }
+      }
+    }
+
+    return r;
+  },
+
+  zipArray(...collate) {
+    const result = [];
+    const count = collate.map(array => array.length).reduce((a, b) => a > b ? a : b);
+    for (let i = 0; i < count; i++) result.push.call(result, ...collate.map(array => array[i]));
+    return result;
+  },
+
+  zipObject(keys, values) {
+    const result = ClasyncFunc.makeObject(keys.map((key, i) => ({[key]: values[i]})));
+    return result;
   }
 };
 

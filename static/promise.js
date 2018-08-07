@@ -1,4 +1,12 @@
+const util = require('util');
+
 const ClasyncPromise = {
+  promisify(obj, method) {
+    const func = typeof method === 'function' ? method : obj[method];
+    const result = util.promisify(func).bind(obj);
+    return result;
+  },
+
   async tick(arg) {
     await new Promise(resolve => setImmediate(resolve, arg));
   },

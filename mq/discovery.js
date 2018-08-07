@@ -91,7 +91,7 @@ class Discovery extends MqDisp {
       if (Object.hasOwnProperty.call(insts, instId)) {
         const info = insts[instId];
 
-        if (info.updatedAt + this.$.msecAliveExpires < now) {
+        if (now - info.updatedAt < this.$.msecAliveExpires) {
           this.instanceDown({instId, reason: 'pingTimeout'});
         }
       }

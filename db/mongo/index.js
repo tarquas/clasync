@@ -61,6 +61,7 @@ class DbMongo extends Clasync {
 
     Object.assign(this.connOpts, {
       // useMongoClient: true,
+      useNewUrlParser: true,
       autoReconnect: true,
       bufferMaxEntries: 0
     });
