@@ -5,10 +5,10 @@ class ClasyncEmitter extends Clasync {
 		this.handlersByEvent = {};
 	}
 
-	on(event, handler) {
+	on(event, handler, pre) {
 		let handlers = this.handlersByEvent[event];
 		if (!handlers) this.handlersByEvent[event] = handlers = new Map();
-		handlers.set(handler, true);
+		handlers.set(handler, pre);
 	}
 
 	off(event, handler) {
@@ -28,11 +28,8 @@ class ClasyncEmitter extends Clasync {
 		return result;
 	}
 
-	emit(event, ...args) {
-		const handlers = this.handlersByEvent[event];
-		if (!handlers) return 0;
-		const entries = Array.from(handlers.entries());
-		const promises = entries.map(([handler, context]) => handler(...args));
+	emitHandlers(entries, ...args) {
+		const promises = entries.map(([handler]) => handler(...args));
 
 		for (const promise of promises) {
 			if (promise instanceof Promise) return (async () => {
@@ -42,6 +39,30 @@ class ClasyncEmitter extends Clasync {
 		}
 
 		return this.reduce(promises);
+	}
+
+	emit(event, ...args) {
+		const handlers = this.handlersByEvent[event];
+		if (!handlers) return 0;
+
+		const entries = Array.from(handlers.entries());
+		const preEntries = entries.filter(([, pre]) => pre);
+		const postEntries = entries.filter(([, pre]) => !pre);
+
+		const preHandled = this.emitHandlers(preEntries, ...args);
+
+		if (preHandled instanceof Promise) {
+			return (async () => {
+				const res = await preHandled;
+				if (res) return res;
+				const postHandled = this.emitHandlers(postEntries, ...args);
+				if (postHandled instanceof Promise) return await postHandled;
+				return postHandled;
+			})();
+		} else {
+			if (preHandled) return preHandled;
+			return this.emitHandlers(postEntries, ...args);
+		}
 	}
 }
 
