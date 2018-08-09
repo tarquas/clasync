@@ -29,6 +29,11 @@ const ClasyncPromise = {
     return promise;
   },
 
+  raceChunk(promises, size) {
+    const promise = this.wrapNamed(promises, arr => this.raceChunkArray(arr, size));
+    return promise;
+  },
+
   async wrapNamed(promises, aggr, single) {
     if (promises instanceof Array) return await aggr(promises);
     const names = Object.keys(promises);
@@ -102,6 +107,37 @@ const ClasyncPromise = {
     }
 
     return result;
+  },
+
+  async promiseIndexMap(promise, index, at) {
+    try {
+      const result = await promise;
+      return {result, index, at};
+    } catch (error) {
+      return {error, index, at};
+    }
+  },
+
+  PromiseError: function PromiseError({error}) {
+    this.error = error;
+  },
+
+  async raceChunkArray(promises, size) {
+    if (!size || !promises.length) return [];
+    const results = Array(promises.length);
+    const indexed = promises.slice(0, size).map((p, i) => this.promiseIndexMap(p, i, i));
+    let next = size;
+    const max = promises.length + size;
+
+    do {
+      const resp = await this.race(indexed.filter(this.echo));
+      results[resp.index] = resp;
+      const p = promises[next];
+      indexed[resp.at] = p && this.promiseIndexMap(p, next, resp.at);
+      if (++next >= max) break;
+    } while (true);
+
+    return results.map(res => 'error' in res ? new this.PromiseError(res) : res.result);
   },
 
   waitEvent(context, subs, throws) {
