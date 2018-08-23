@@ -20,6 +20,18 @@ ClasyncFunc = {
     return p;
   },
 
+  getDef(object, ...walk) {
+    let p = object;
+    const value = walk.pop();
+
+    for (const step of walk) {
+      if (p == null || !(step in p)) return value;
+      p = p[step];
+    }
+
+    return p;
+  },
+
   set(object, ...walk) {
     let p = object;
     if (p == null) return p;

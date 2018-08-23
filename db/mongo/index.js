@@ -61,9 +61,7 @@ class DbMongo extends Clasync {
 
     Object.assign(this.connOpts, {
       // useMongoClient: true,
-      useNewUrlParser: true,
-      autoReconnect: true,
-      bufferMaxEntries: 0
+      ...this.$.hardOptions
     });
 
     this.conn = await this.common.createConnection(
@@ -82,5 +80,11 @@ class DbMongo extends Clasync {
 DbMongo.common = mongoose;
 DbMongo.Types = mongoose.Types;
 DbMongo.ObjectId = mongoose.Types.ObjectId;
+
+DbMongo.hardOptions = {
+  useNewUrlParser: true,
+  autoReconnect: true,
+  bufferMaxEntries: 0
+};
 
 module.exports = DbMongo;

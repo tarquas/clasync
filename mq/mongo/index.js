@@ -540,7 +540,7 @@ class MqMongo extends Clasync {
     this.capDbMongo = await util.promisify(MongoClient.connect).call(
       MongoClient,
       this.capDb ? this.capDb.connString : this.db.connString,
-      {forceServerObjectId: true}
+      {...DbMongo.hardOptions, forceServerObjectId: true}
     );
 
     await sub({mqModel: MqMongoModel.sub({db: this.dbMongo})});
