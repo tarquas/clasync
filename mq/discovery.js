@@ -28,7 +28,10 @@ class Discovery extends MqDisp {
     if (instInfo.prevCpuAvg) {
       const idleDifference = instInfo.cpuAvg.idle - instInfo.prevCpuAvg.idle;
       const totalDifference = instInfo.cpuAvg.total - instInfo.prevCpuAvg.total;
-      instInfo.cpuAvgLoad = 100 - ((100 * idleDifference) / totalDifference | 0);
+
+      if (totalDifference) {
+        instInfo.cpuAvgLoad = 100 - ((100 * idleDifference) / totalDifference | 0);
+      }
     }
   }
 
@@ -43,11 +46,15 @@ class Discovery extends MqDisp {
 
   async keepAlive(info = {}) {
     if (!this.isAlive) return;
+
+    Object.assign(info, {
+      cpuAvg: this.$.cpuAverage()
+    });
+
     const db = this.$.get(this.db, 'conn', 'db');
     const stats = db && (await util.promisify(db.stats).call(db));
 
     Object.assign(info, {
-      cpuAvg: this.$.cpuAverage(),
       dbDataSize: this.$.get(stats, 'dataSize')
     });
 
@@ -134,11 +141,10 @@ class Discovery extends MqDisp {
   }
 
   async init() {
-    this.byName = {};
-    this.instances = {};
-    this.nInstances = 0;
-
     const instId = DbMongo.newShortId();
+
+    this.instances = {[instId]: this.info};
+    this.nInstances = 1;
 
     Object.assign(this, {
       instId,
@@ -147,8 +153,9 @@ class Discovery extends MqDisp {
     });
 
     Object.assign(this.info, {createdAt: new Date()});
+    this.instanceUpdate({instId});
+    await this.keepAliveBound(this.info);
     await this.pub('pollInstances', {});
-    this.keepAliveBound(this.info);
   }
 
   async final() {

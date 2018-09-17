@@ -38,7 +38,7 @@ class MqMongo extends Clasync {
     if (this.finishing) return null;
     if (this.waitPubsubReady) await this.waitPubsubReady;
 
-    const inserted = await util.promisify(this.pubsubColl.insert).call(
+    const inserted = await util.promisify(this.pubsubColl.insertOne).call(
       this.pubsubColl,
       {event, message: payload},
       {safe: true}

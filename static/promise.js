@@ -2,6 +2,7 @@ const util = require('util');
 
 const ClasyncPromise = {
   promisify(obj, method) {
+    if (method == null) return util.promisify(obj);
     const func = typeof method === 'function' ? method : obj[method];
     const result = util.promisify(func).bind(obj);
     return result;

@@ -1,12 +1,35 @@
 let ClasyncFunc;
 
 ClasyncFunc = {
+  private(fields) {
+    const res = {};
+
+    for (const [field, value] of Object.entries(fields)) {
+      if (typeof value !== 'function') res[field] = value;
+      else res[field] = value.call.bind(value);
+    }
+
+    return res;
+  },
+
   echo(arg) {
     return arg;
   },
 
   async aecho(arg) {
     return arg;
+  },
+
+  numSort(a, b) {
+    return a - b;
+  },
+
+  sum(a, b) {
+    return a + b;
+  },
+
+  safeSum(a, b) {
+    return (+a || 0) + (+b || 0);
   },
 
   get(object, ...walk) {
@@ -250,6 +273,18 @@ ClasyncFunc = {
     let value = from - inc;
     const result = ClasyncFunc.maps(Array(count), () => (value += inc));
     return result;
+  },
+
+  remove(arr, func) {
+    const res = [];
+    let i = 0;
+
+    while (i < arr.length) {
+      if (func.call(this, arr[i], i, arr)) res.push(...arr.splice(i, 1));
+      else i++;
+    }
+
+    return res;
   },
 
   rxDotSplit: /^([^\.]*)(?:\.(.*))?$/,

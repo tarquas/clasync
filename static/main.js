@@ -3,9 +3,26 @@ const ClasyncMain = {
     process.stdin.resume();
   },
 
-  async exit(reason) {
-    if (!this.mainInstance) return process.exit(reason);
-    await this.finish(this.mainInstance, reason);
+  async exit(reason, isSignal) {
+    if (isSignal) {
+      if (this.signalExiting) return process.exit(reason);
+      this.signalExiting = true;
+    }
+
+    if (this.exiting) return;
+    this.exiting = true;
+
+    const main = this.mainInstance;
+    if (!main) return process.exit(reason);
+    const inst = this.get(main, this.instance);
+    this.finish(main, reason);
+    await this.delay(this.gracefulShutdownMsec);
+    if (!inst.finaled) this.throw('Timed out waiting for finalizers', {title: 'CRITICAL', exit: 2});
+  },
+
+  async fail(from, err) {
+    await from;
+    throw err;
   },
 
   async runMain() {
@@ -17,7 +34,7 @@ const ClasyncMain = {
       const inst = me[this.instance];
 
       for (const signal of this.exitSignals) {
-        process.on(signal, () => this.exit(signal));
+        process.on(signal, () => this.exit(signal, true));
       }
 
       process.on(
@@ -31,7 +48,7 @@ const ClasyncMain = {
       );
 
       if (me.main) {
-        const mainRes = await me.main();
+        const mainRes = await this.race([me.main(), inst.waitFinaled]);
         if (mainRes == null) this.stay();
         else this.exit(mainRes);
       } else {
@@ -57,7 +74,9 @@ const ClasyncMain = {
     'SIGINT',
     'SIGHUP',
     'SIGTERM'
-  ]
+  ],
+
+  gracefulShutdownMsec: 5000
 };
 
 module.exports = ClasyncMain;

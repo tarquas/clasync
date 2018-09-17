@@ -60,18 +60,25 @@ class Web extends Clasync {
     }
   }
 
+  async ready() {
+    if (this.isReady) return;
+    this.isReady = true;
+    if (!this.primary) return;
+
+    this.httpBound = await this.listenFind(this.http, this.httpBind, this.httpFind);
+
+    if (this.https !== this.http) {
+      this.httpsBound = await this.listenFind(this.https, this.httpsBind, this.httpsFind);
+    } else {
+      this.httpsBound = this.httpBound;
+    }
+  }
+
   async init() {
     this._prefix = this.prefix || '';
     this.bind = this.httpBind || this.httpsBind;
     this.createServers();
-
-    if (this.primary) {
-      this.httpBound = await this.listenFind(this.http, this.httpBind, this.httpFind);
-
-      if (this.https !== this.http) {
-        this.httpsBound = await this.listenFind(this.https, this.httpsBind, this.httpsFind);
-      } else this.httpsBound = this.httpBound;
-    }
+    if (!this.confirmReady) await this.ready();
   }
 
   async response(data, req) {

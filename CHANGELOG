@@ -1,0 +1,21 @@
+*** Version 0.2.0 - 2018-09-07
+
+Functional (static/func.js):
+- More isolation with private fields;
+- Remove filtered items from array and return them in new array: `.remove()`.
+
+Events (emmiter.js):
+- Multiple event handling stages (handler rank is identified by a numerical value);
+- Event handler results are merged into one object and event is
+  treated as handled on current stage if this object is not empty;
+- Any-handlers -- if not handled by some target handler, emit to any-handler.
+
+MQ Discovery (mq/discovery.js):
+- Ensure that list of instances will contain own instance ASAP.
+
+Web (web/index.js):
+- Ability to manually confirm on web server readiness for binding.
+
+Main module (index.js; static/main.js):
+- Immediately terminate application after graceful shutdown time elapsed;
+- Immediately terminate application on double user-terminating signals (f.x. Ctrl+C).

@@ -30,7 +30,7 @@ const ClasyncError = {
     }
 
     if (!shortPath) {
-      const mainDir = Path.dirname(require.main.filename);
+      const mainDir = Path.dirname(require.main ? require.main.filename : process.cwd());
       const path = Path.relative(mainDir, module.filename);
       shortPath = path.charAt(0) === '.' ? path : `./${path}`;
     }
