@@ -61,12 +61,11 @@ class Discovery extends MqDisp {
     try {
       await this.pub('instanceUp', {instId: this.instId, info});
     } catch (err) {
-      // ignore
+      if (this.isAlive) setTimeout(this.keepAliveBound, this.$.msecPingRetry, info);
+      return;
     }
 
-    if (this.isAlive) {
-      setTimeout(this.keepAliveBound, this.$.msecPingAlive);
-    }
+    if (this.isAlive) setTimeout(this.keepAliveBound, this.$.msecPingAlive);
   }
 
   async ['SUB instanceUp']({
@@ -166,6 +165,7 @@ class Discovery extends MqDisp {
 }
 
 Discovery.msecPingAlive = 60000;
+Discovery.msecPingRetry = 5000;
 Discovery.msecAliveExpires = 90000;
 
 module.exports = Discovery;

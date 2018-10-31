@@ -10,18 +10,20 @@ class MqMongoModel extends DbMongoModel {
   get schema() {
     return new this.Schema({
       _id: String,
-      date: Date,
+      date: this.Schema.Types.Mixed,
       curDate: this.Schema.Types.Mixed,
       expires: {type: Date, expires: 1},
       queue: String,
       message: this.Schema.Types.Mixed,
+      priority: Number,
+      topic: String,
       nRequeues: Number
     }, {
       collection: this.mq.queueName
     })
-      .index({queue: 1, date: 1})
+      .index({queue: 1, priority: 1, date: 1})
       .index({date: 1});
-  }  
+  }
 }
 
 class MqMongo extends Clasync {
@@ -74,11 +76,13 @@ class MqMongo extends Clasync {
 
     const id = this.dbMongo.newShortId();
 
-    const item = await this.model.findOneAndUpdate({curDate: true}, {
+    const item = await this.model.findOneAndUpdate({date: true}, {
       $currentDate: {date: true, curDate: true}, $set: {
         _id: id,
         queue,
         message: payload,
+        priority: +opts.priority || 0,
+        topic: (opts.topic || '').toString(),
         nRequeues: 0
       }
     }, {upsert: true, new: true}).lean().exec();
@@ -94,7 +98,7 @@ class MqMongo extends Clasync {
   }
 
   async remove(id) {
-    const removed = await this.model.remove({_id: id}).exec();
+    const removed = await this.model.deleteOne({_id: id}).exec();
     return removed;
   }
 
@@ -228,28 +232,54 @@ class MqMongo extends Clasync {
           const now = +new Date() + object.sync;
           const start = process.uptime();
 
+          const currentTopics = (await this.model.distinct('topic', {
+            queue,
+            date: {$gte: new Date(now + this.$.accuracyMsec)}
+          })).filter(this.$.echo);
+
           const item = await this.model.findOneAndUpdate(
-            {queue, date: {$lt: new Date(now + this.$.accuracyMsec)}},
+            {
+              queue,
+              date: {$lt: new Date(now + this.$.accuracyMsec)},
+              topic: {$nin: currentTopics}
+            },
+
             {
               $currentDate: {curDate: true},
               $set: {date: new Date(now + this.$.visibilityMsec)}
             },
-            {sort: {date: 1}, new: true}
+
+            {sort: {queue: 1, priority: 1, date: 1}, new: true}
           ).lean().exec();
 
           const diff = process.uptime() - start;
 
-          const curDate = item ? item.curDate : (await this.getNow());
-          if (diff < this.$.lagLatencySec) object.sync = curDate - new Date();
-
           if (!item) {
+            const curDate = await this.getNow();
+            if (diff < this.$.lagLatencySec) object.sync = curDate - new Date();
+
             this.setFreeWorker(workerId);
 
-            await object.wait;
+            await this.$.race(object.wait, this.$.delay(this.$.visibilityMsec));
 
             object.resume = null;
             object.wait = null;
             continue;
+          }
+
+          if (diff < this.$.lagLatencySec) object.sync = item.curDate - new Date();
+
+          if (item.topic) {
+            const topicRace = await this.model.find({
+              queue,
+              date: {$gte: new Date(now + this.$.accuracyMsec)},
+              topic: item.topic
+            }, {_id: 1}).lean().exec();
+
+            if (topicRace.length && item._id !== topicRace[0]._id) {
+              await this.requeue(item._id);
+              continue;
+            }
           }
 
           object.id = item._id;
@@ -433,9 +463,10 @@ class MqMongo extends Clasync {
         }
 
         if (!this.latest) {
-          const docs = await util.promisify(coll.insert).call(coll, {
+          const docs = await util.promisify(coll.insertOne).call(coll, {
             _id: this.$.nullObjectId,
-            dummy: true
+            dummy: true,
+            curDate: new Date()
           }, {safe: true});
 
           [this.latest] = docs.ops;
@@ -602,7 +633,7 @@ MqMongo.nullObjectId = DbMongo.ObjectId('000000000000000000000000');
 
 MqMongo.pubsubRetryMsec = 2000;
 
-MqMongo.visibilityMsec = 180000;
+MqMongo.visibilityMsec = 60000;
 MqMongo.pubsubCapSize = 1024 * 1024 * 5;
 MqMongo.tailableRetryInterval = 2000;
 
@@ -610,7 +641,6 @@ MqMongo.accuracyMsec = MqMongo.visibilityMsec / 3;
 MqMongo.prolongMsec = MqMongo.accuracyMsec;
 MqMongo.nowSyncMsec = MqMongo.accuracyMsec / 2;
 MqMongo.lagLatencySec = MqMongo.nowSyncMsec / 4000;
-
 MqMongo.maxRequeuesOnError = 3;
 
 module.exports = MqMongo;

@@ -19,3 +19,14 @@ Web (web/index.js):
 Main module (index.js; static/main.js):
 - Immediately terminate application after graceful shutdown time elapsed;
 - Immediately terminate application on double user-terminating signals (f.x. Ctrl+C).
+
+*** Version 0.3.0 - 2018-10-31
+
+MQ Mongo-based (mq/mongo/):
+- Support queue priority (records with lower priorities are processed first);
+- Support queue topic (only one from several records that have the same topic are guaranteed to be processed at a moment).
+- Reduced default visibility timeout (from 3 minutes to 1 minute).
+- Periodically wake up workers (in visibility timeout period) to check for records which had been possibly stalled after crash.
+
+MQ Discovery (mq/discovery.js):
+- Retry after unsuccessful attempt to signal instance up event for keep-alive (caused by connection loss etc.).

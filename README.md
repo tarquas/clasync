@@ -51,10 +51,10 @@ module.exports = Dep;
 
 `index.js`
 ```js
-const ClasyncEmitter = require('clasync/emitter');
+const Clasync = require('clasync');
 const Dep = require('./dep');
 
-class Main extends ClasyncEmitter {  // this class extends framework indirectly
+class Main extends Clasync {
 
   // framework handlers
 

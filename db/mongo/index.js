@@ -61,6 +61,8 @@ class DbMongo extends Clasync {
 
     Object.assign(this.connOpts, {
       // useMongoClient: true,
+      useCreateIndex: true,
+      useFindAndModify: false,
       ...this.$.hardOptions
     });
 
