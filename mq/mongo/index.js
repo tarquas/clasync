@@ -17,6 +17,7 @@ class MqMongoModel extends DbMongoModel {
       message: this.Schema.Types.Mixed,
       priority: Number,
       topic: String,
+      important: Boolean,
       nRequeues: Number
     }, {
       collection: this.mq.queueName
@@ -83,6 +84,7 @@ class MqMongo extends Clasync {
         message: payload,
         priority: +opts.priority || 0,
         topic: (opts.topic || '').toString(),
+        important: !!opts.important,
         nRequeues: 0
       }
     }, {upsert: true, new: true}).lean().exec();
@@ -298,10 +300,14 @@ class MqMongo extends Clasync {
           try {
             const decoded = item.message;
 
+            if (item.important) {
+              object.waitImportant = new Promise((resolve) => { object.resolveImportant = resolve; });
+            }
+
             try {
               const result = await onData.call(this, decoded);
 
-              if (this[this.$.instance].final) return null;
+              if (!item.important && this[this.$.instance].final) return null;
 
               if (result !== false) {
                 await this.remove(object.id);
@@ -320,6 +326,12 @@ class MqMongo extends Clasync {
                 msg: item.message,
                 type: 'WORKER'
               }))) throw err;
+            }
+
+            if (item.important) {
+              object.resolveImportant();
+              object.waitImportant = null;
+              object.resolveImportant = null;
             }
           } finally {
             object.id = null;
@@ -612,11 +624,17 @@ class MqMongo extends Clasync {
   }
 
   async final(reason) {
-    for (const [workerId, object] of Object.entries(this.workers)) {
+    await this.$.all(Object.entries(this.workers).map(async ([workerId, object]) => {
       await this.unhandle(workerId);
-      if (!object || !object.id) continue;
-      await this.requeue(object.id);
-    }
+      if (!object || !object.id) return;
+
+      if (object.waitImportant) {
+        await object.waitImportant;
+        await this.signalQueue(object.queue);
+      } else {
+        await this.requeue(object.id);
+      }
+    }));
 
     if (this.finishing) return;
     this.finishing = true;
