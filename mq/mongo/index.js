@@ -222,7 +222,7 @@ class MqMongo extends Clasync {
         object.sync = (await this.getNow()) - new Date();
         object.queue = queue;
 
-        loop: while (!object.halt) { // eslint-disable-line
+        while (!object.halt) { // eslint-disable-line
           if (!object.resume) {
             object.wait = new Promise((resume) => {
               object.resume = resume;
@@ -260,7 +260,7 @@ class MqMongo extends Clasync {
 
             this.setFreeWorker(workerId);
 
-            await this.$.race(object.wait, this.$.delay(this.$.visibilityMsec));
+            await this.$.race([object.wait, this.$.delay(this.$.visibilityMsec)]);
 
             object.resume = null;
             object.wait = null;
@@ -299,12 +299,18 @@ class MqMongo extends Clasync {
             const decoded = item.message;
 
             try {
-              if (await onData.call(this, decoded) !== false) {
+              const result = await onData.call(this, decoded);
+
+              if (this[this.$.instance].final) return null;
+
+              if (result !== false) {
                 await this.remove(object.id);
               } else {
                 await this.requeue(object.id);
               }
             } catch (err) {
+              if (this[this.$.instance].final) return null;
+
               if ((item.nRequeues | 0) < this.$.maxRequeuesOnError) {
                 await this.requeue(object.id, true);
               }
@@ -606,6 +612,12 @@ class MqMongo extends Clasync {
   }
 
   async final(reason) {
+    for (const [workerId, object] of Object.entries(this.workers)) {
+      await this.unhandle(workerId);
+      if (!object || !object.id) continue;
+      await this.requeue(object.id);
+    }
+
     if (this.finishing) return;
     this.finishing = true;
     this.terminate();
@@ -613,8 +625,6 @@ class MqMongo extends Clasync {
     this.waitTerminate = null;
     this.pubsubCollReady = null;
     this.waitPubsubCollReady = null;
-
-    await Object.keys(this.workers).map(workerId => this.unhandle(workerId));
 
     for (const event in this.subWait) {
       const wait = this.subWait[event];
