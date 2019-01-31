@@ -1,12 +1,34 @@
 const Path = require('path');
 
 const ClasyncError = {
-  throw(err, opts) {
+  log(...args) {
+    console.log(...args);
+  },
+
+  logError(...args) {
+    console.error(...args);
+  },
+
+  logFatal(...args) {
+    this.logError(...args);
+  },
+
+  debugMode: process.env.DEBUG | 0,
+
+  logDebug(...args) {
+    if (this.debugMode) this.log(...args);
+  },
+
+  prettyError(err, opts) {
     const {title, exit, when} = typeof opts === 'string' ? {title: opts} : opts || {};
     const at = when || new Date();
-    console.log(`\n\n--- ${title || 'THROWN'} --- ${new Date(at).toISOString()}`);
-    console.log(this.getStack(err));
-    if (exit != null) process.exit(exit);
+    this.logError(`\n\n--- ${title || 'THROWN'} --- ${new Date(at).toISOString()}`);
+    this.logError(this.getStack(err));
+  },
+
+  throw(err, opts) {
+    this.prettyError(err, opts);
+    if (typeof opts !== 'string' && opts.exit != null) process.exit(opts.exit);
   },
 
   getStack(err) {

@@ -20,26 +20,26 @@ class Dep extends Clasync {  // this class extends framework directly
   async init() {  // initialization
     const msec = this.$.msecForInit;  // get our static value
     await this.$.delay(msec);  // call framework method: wait before continue
-    console.log(`Dep is ready in ${msec} msec`);
+    this.$.log(`Dep is ready in ${msec} msec`);
   }
 
   async final() {  // finalization
     await this.$.doCommonFinal(this.$.msecForCommonFinal);  // call static method
     const msec = this.msecForFinal;  // get our configured value
     await this.doFinal(msec);  // call non-static method
-    console.log('Dep finished');
+    this.$.log('Dep finished');
   }
 
   // custom methods
 
   static async doCommonFinal(msec) {  // static method
-    await this.delay(msec);  // no `$` here as we're already in static scope
-    console.log(`Dep common final in ${msec} msec`);
+    await this.delay(msec);  // can omit `$` here as we're already in static scope
+    this.$.log(`Dep common final in ${msec} msec`); // or can use '$' for portability
   }
 
   async doFinal(msec) {  // non-static method
     await this.$.delay(msec);  // `$` to use method from static scope
-    console.log(`Dep final in ${msec} msec`);
+    this.$.log(`Dep final in ${msec} msec`);
   }
 }
 
@@ -69,17 +69,17 @@ class Main extends Clasync {
       $dep: Dep.sub(this.dep)  // declare dependency: `Dep` with configuration
     });
 
-    console.log('App and all its dependencies are ready');
+    this.$.log('App and all its dependencies are ready');
   }
 
   async final(reason) {
-    console.log(`App finished. Reason: ${reason}`);
+    this.$.log(`App finished. Reason: ${reason}`);
   }
 
   async main() {
-    console.log('Main started');
+    this.$.log('Main started');
     await this.$.delay(5000);
-    console.log('Main finished');
+    this.$.log('Main finished');
     return 0;  // exit code (reason)
   }
 }
@@ -130,7 +130,7 @@ Launch again and after `Main started` press Ctrl+C twice. Application will termi
 ## Async Events
 `events.js`
 ```js
-const ClasyncEmitter = require('../clasync/emitter');
+const ClasyncEmitter = require('clasync/emitter');
 
 class Main extends ClasyncEmitter {  // this class extends framework indirectly
 
@@ -144,7 +144,7 @@ class Main extends ClasyncEmitter {  // this class extends framework indirectly
 
   async init() {
     this.on('start', async ({msec}) => {
-      console.log('Main started');
+      this.$.log('Main started');
       await this.$.delay(msec);
     }, 0);  // stage 0. no results from this stage
 
@@ -160,17 +160,17 @@ class Main extends ClasyncEmitter {  // this class extends framework indirectly
     //   is returned from previous stage
     this.on('start', () => ({stage2_handler1: 3}), 2);
 
-    console.log('App and all its dependencies are ready');
+    this.$.log('App and all its dependencies are ready');
   }
 
   async final(reason) {
-    console.log(`App finished. Reason: ${reason}`);
+    this.$.log(`App finished. Reason: ${reason}`);
   }
 
   async main() {
     const eventResults = await this.emit('start', {msec: 5000});
-    console.log('Event result:', eventResults);
-    console.log('Main finished');
+    this.$.log('Event result:', eventResults);
+    this.$.log('Main finished');
     return 0;
   }
 }

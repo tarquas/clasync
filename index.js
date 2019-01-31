@@ -4,6 +4,8 @@ const ClasyncMain = require('./static/main');
 const ClasyncFunc = require('./static/func');
 
 class Clasync extends ClasyncBase {
+  static get $() { return this; }
+
   static async subSet(sub) {
     const inst = this[Clasync.instance];
     if (!inst || !sub || typeof sub !== 'object') return;
@@ -62,6 +64,10 @@ class Clasync extends ClasyncBase {
   }
 }
 
+function ClasyncBase(config, $$) {
+  return ClasyncCtor(Object.assign(this, config), $$);
+}
+
 async function ClasyncCtor(t, $$) {
   const inits = [];
   const inst = {createdAt: new Date(), id: Clasync.nextId++, init$$: !$$, $$};
@@ -94,10 +100,6 @@ async function ClasyncCtor(t, $$) {
   return t;
 }
 
-function ClasyncBase(config, $$) {
-  return ClasyncCtor(Object.assign(this, config), $$);
-}
-
 Object.assign(Clasync, ClasyncError);
 Object.assign(Clasync, ClasyncPromise);
 Object.assign(Clasync, ClasyncMain);
@@ -108,4 +110,4 @@ Clasync.nextId = 1;
 
 module.exports = Clasync;
 
-Clasync.autorun(require.main).catch(console.error);
+Clasync.autorun(require.main).catch(Clasync.logFatal);
