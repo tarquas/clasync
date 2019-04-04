@@ -158,10 +158,16 @@ ClasyncFunc = {
     const groups = ClasyncFunc.makeObject(ents.map(([k, v]) => ({[v]: true})));
     ClasyncFunc.mapsValues(groups, () => []);
 
-    if (!map) {
-      for (const [k, v] of ents) groups[v].push(k);
-    } else {
-      for (const [k, v] of ents) groups[v].push(map[k]);
+    for (const [k, v] of ents) {
+      const h = map ? map[k] : k;
+
+      if (v instanceof Array) {
+        for (const g of v) {
+          groups[g].push(h);
+        }
+      } else {
+        groups[v].push(h);
+      }
     }
 
     return groups;

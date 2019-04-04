@@ -197,7 +197,8 @@ class MqMongo extends Clasync {
     const diff = process.uptime() - start;
 
     if (diff >= this.$.lagLatencySec) {
-      throw new Error('MQ PubSub Sync: network latency is too big');
+      await this.$.delay(this.$.pubsubRetryMsec); // wait before next check to avoid flood
+      throw new Error('MQ PubSub Sync: network latency is too big, trying again in 2 sec');
     }
 
     const curDate = this.$.get(item, 'value', 'curDate');
@@ -278,9 +279,15 @@ class MqMongo extends Clasync {
               topic: item.topic
             }, {_id: 1}).lean().exec();
 
-            if (topicRace.length && item._id !== topicRace[0]._id) {
-              await this.requeue(item._id);
-              continue;
+            if (topicRace.length > 1) {
+              let first = topicRace[0];
+              let {curDate} = first;
+              for (let i = 1; i < topicRace.length; i++) if (topicRace[i].curDate < first.curDate) first = topicRace[i];
+
+              if (first._id !== item._id) {
+                await this.requeue(item._id);
+                continue;
+              }
             }
           }
 
@@ -434,7 +441,7 @@ class MqMongo extends Clasync {
   }
 
   async info(queue) {
-    const count = await this.model.find({queue}).count().exec();
+    const count = await this.model.find({queue}).countDocuments().exec();
     const result = {messageCount: count};
     return result;
   }

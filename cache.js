@@ -1,7 +1,7 @@
 class Cache {
   constructor({
-    maxLifetime, // time in milliseconds after which to expire least recently used items
-    maxCount // maximum number of items
+    maxLifetime, // time in milliseconds after which to expire least recently used items or null if unlimited
+    maxCount // maximum number of items or null if unlimited
   }) {
     this.maxLifetime = maxLifetime | 0;
     this.maxCount = maxCount | 0;
@@ -18,15 +18,11 @@ class Cache {
   }
 
   processExpire({expireAfter, maxCount}) {
-    for (const key in this.cache) {
-      if (Object.hasOwnProperty.call(this.cache, key)) {
-        const obj = this.cache[key];
-
-        if (this.nCache > maxCount || expireAfter > obj.usedAt) {
-          this.expired(key, obj.object);
-          this.remove(key);
-        } else break;
-      }
+    for (const [key, obj] of Object.entries(this.cache)) {
+      if ((maxCount && this.nCache > maxCount) || (expireAfter && expireAfter > obj.usedAt)) {
+        this.expired(key, obj.object);
+        this.remove(key);
+      } else break;
     }
   }
 

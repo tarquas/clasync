@@ -31,3 +31,24 @@ MQ Mongo-based (mq/mongo/):
 
 MQ Discovery (mq/discovery.js):
 - Retry after unsuccessful attempt to signal instance up event for keep-alive (caused by connection loss etc.).
+
+*** Version 0.3.3 - 2019-01-31
+
+Main module / error logging (index.js):
+- Static dollar support (circular): `ClasyncClass.$ = ClasyncClass`.
+
+Main module / error logging (index.js; static/error.js):
+- Logging wrappers: `log`, `logError`, `logFatal`, `logDebug`.
+
+*** Version 0.3.4 - 2019-04-04
+
+Cache (cache.js):
+- Support unlimited values for maxCount and maxLifetime. 
+
+MQ Mongo-based (mq/mongo/):
+- Delay before retrying sync on too big network latency detected;
+- Fix topic race condition detection bug;
+- Apply deprecations of `mongoose`.
+
+Functional (static/func.js):
+- Support multiple key grouping of `groupBy` if grouping function/map returns array.
