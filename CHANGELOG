@@ -40,7 +40,7 @@ Main module / error logging (index.js):
 Main module / error logging (index.js; static/error.js):
 - Logging wrappers: `log`, `logError`, `logFatal`, `logDebug`.
 
-*** Version 0.3.5 - 2019-04-04
+*** Version 0.3.6 - 2019-04-04
 
 Cache (cache.js):
 - Support unlimited values for maxCount and maxLifetime. 

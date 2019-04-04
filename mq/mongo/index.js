@@ -23,6 +23,7 @@ class MqMongoModel extends DbMongoModel {
       collection: this.mq.queueName
     })
       .index({queue: 1, priority: 1, date: 1})
+      .index({queue: 1, topic: 1})
       .index({date: 1});
   }
 }
@@ -275,22 +276,26 @@ class MqMongo extends Clasync {
           if (item.topic) {
             const topicRace = await this.model.find({
               queue,
-              date: {$gte: new Date(now + this.$.accuracyMsec)},
-              topic: item.topic
-            }, {date: 1 /*, message: 1*/}).sort({date: 1}).lean().exec();
+              topic: item.topic,
+              date: {$gte: new Date(now + this.$.accuracyMsec)}
+            }, {date: 1
+              //, message: 1 //
+            }).hint({queue: 1, topic: 1}).lean().exec();
 
             if (topicRace.length > 1) {
               let first = topicRace[0];
 
-              /*console.log(
+              /*/
+              console.log(
                 `Conflict: [#${workerId}] ` +
                 `${item.message} ` +
                 `F:${first.message} ` +
                 `ALL: ${topicRace.map(t => t.message).join(',')}`
-              );*/
+              );
+              //*/
 
               if (first._id !== item._id) {
-                // console.log(`REQ: ${item.message}`);
+                //console.log(`REQ: ${item.message}`); //
                 await this.requeue(item._id);
                 continue;
               }
