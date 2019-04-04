@@ -277,14 +277,20 @@ class MqMongo extends Clasync {
               queue,
               date: {$gte: new Date(now + this.$.accuracyMsec)},
               topic: item.topic
-            }, {_id: 1}).lean().exec();
+            }, {date: 1 /*, message: 1*/}).sort({date: 1}).lean().exec();
 
             if (topicRace.length > 1) {
               let first = topicRace[0];
-              let {curDate} = first;
-              for (let i = 1; i < topicRace.length; i++) if (topicRace[i].curDate < first.curDate) first = topicRace[i];
+
+              /*console.log(
+                `Conflict: [#${workerId}] ` +
+                `${item.message} ` +
+                `F:${first.message} ` +
+                `ALL: ${topicRace.map(t => t.message).join(',')}`
+              );*/
 
               if (first._id !== item._id) {
+                // console.log(`REQ: ${item.message}`);
                 await this.requeue(item._id);
                 continue;
               }
