@@ -22,8 +22,8 @@ class MqMongoModel extends DbMongoModel {
     }, {
       collection: this.mq.queueName
     })
-      .index({queue: 1, priority: 1, date: 1})
-      .index({queue: 1, topic: 1})
+      .index({queue: 1, priority: 1})
+      .index({queue: 1, topic: 1, priority: 1})
       .index({date: 1});
   }
 }
@@ -253,7 +253,7 @@ class MqMongo extends Clasync {
               $set: {date: new Date(now + this.$.visibilityMsec)}
             },
 
-            {sort: {queue: 1, priority: 1, date: 1}, new: true}
+            {sort: {queue: 1, priority: 1}, new: true}
           ).lean().exec();
 
           const diff = process.uptime() - start;
@@ -280,7 +280,7 @@ class MqMongo extends Clasync {
               date: {$gte: new Date(now + this.$.accuracyMsec)}
             }, {date: 1
               //, message: 1 //
-            }).hint({queue: 1, topic: 1}).lean().exec();
+            }).hint({queue: 1, topic: 1, priority: 1}).lean().exec();
 
             if (topicRace.length > 1) {
               let first = topicRace[0];
