@@ -22,8 +22,8 @@ class MqMongoModel extends DbMongoModel {
     }, {
       collection: this.mq.queueName
     })
-      .index({queue: 1, priority: 1})
-      .index({queue: 1, topic: 1, priority: 1})
+      .index({queue: 1, priority: 1, date: 1})
+      .index({queue: 1, curDate: 1})
       .index({date: 1});
   }
 }
@@ -79,7 +79,7 @@ class MqMongo extends Clasync {
     const id = this.dbMongo.newShortId();
 
     const item = await this.model.findOneAndUpdate({date: true}, {
-      $currentDate: {date: true, curDate: true}, $set: {
+      $currentDate: {date: true, curDate: {$type: 'timestamp'}}, $set: {
         _id: id,
         queue,
         message: payload,
@@ -92,7 +92,7 @@ class MqMongo extends Clasync {
 
     if (opts.temp) {
       await this.model.update({_id: id}, {$set: {
-        expires: new Date(+item.curDate + this.$.visibilityMsec)
+        expires: new Date(+item.date + this.$.visibilityMsec)
       }}).lean().exec();
     }
 
@@ -105,8 +105,15 @@ class MqMongo extends Clasync {
     return removed;
   }
 
-  async requeue(id, err) {
-    const upd = {$currentDate: {date: true}};
+  async requeue(id, err, date) {
+    const upd = {$currentDate: {curDate: {$type: 'timestamp'}}};
+
+    if (date) {
+      upd.$set = {date};
+    } else {
+      upd.$currentDate.date = true;
+    }
+
     if (err) upd.$inc = {nRequeues: 1};
 
     const item = await this.model.findOneAndUpdate(
@@ -253,7 +260,7 @@ class MqMongo extends Clasync {
               $set: {date: new Date(now + this.$.visibilityMsec)}
             },
 
-            {sort: {queue: 1, priority: 1}, new: true}
+            {sort: {queue: 1, priority: 1, date: 1}, new: true}
           ).lean().exec();
 
           const diff = process.uptime() - start;
@@ -274,29 +281,34 @@ class MqMongo extends Clasync {
           if (diff < this.$.lagLatencySec) object.sync = item.curDate - new Date();
 
           if (item.topic) {
-            const topicRace = await this.model.find({
+            const raceProj = {_id: 1};
+            if (this.debugRace) raceProj.message = 1;
+
+            const raceQuery = this.model.find({
               queue,
-              topic: item.topic,
-              date: {$gte: new Date(now + this.$.accuracyMsec)}
-            }, {date: 1
-              //, message: 1 //
-            }).hint({queue: 1, topic: 1, priority: 1}).lean().exec();
+              date: {$gte: new Date(now + this.$.accuracyMsec)},
+              topic: item.topic
+            }, raceProj).sort({queue: 1, curDate: 1})
+
+            if (!this.debugRace) raceQuery.limit(2);
+
+            const topicRace = await raceQuery.lean().exec();
 
             if (topicRace.length > 1) {
               let first = topicRace[0];
 
-              /*/
-              console.log(
-                `Conflict: [#${workerId}] ` +
-                `${item.message} ` +
-                `F:${first.message} ` +
-                `ALL: ${topicRace.map(t => t.message).join(',')}`
-              );
-              //*/
+              if (this.debugRace) {
+                console.log(
+                  `MQ RACE Conflict: [#${workerId}] ` +
+                  `${item.message} ` +
+                  `F:${first.message} ` +
+                  `ALL: ${topicRace.map(t => t.message).join(',')}`
+                );
+              }
 
               if (first._id !== item._id) {
-                //console.log(`REQ: ${item.message}`); //
-                await this.requeue(item._id);
+                if (this.debugRace) console.log(`MQ RACE Requeue: ${item.message}`);
+                await this.requeue(item._id, null, item.curDate);
                 continue;
               }
             }
