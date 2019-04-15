@@ -309,7 +309,7 @@ ClasyncFunc = {
   regExpInput(s) {
     const result = s.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
     return result;
-  }
+  },
 
   rxDotSplit: /^([^\.]*)(?:\.(.*))?$/,
 
