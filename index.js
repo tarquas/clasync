@@ -34,9 +34,12 @@ class Clasync extends ClasyncBase {
   static async finish(t, reason) {
     const inst = this.get(t, Clasync.instance);
     if (!inst || inst.final) return;
+
     inst.final = true;
     inst.setFinal(reason);
+
     if (!inst.inited) await inst.waitInited;
+
     const from = t;
 
     await this.all(Object.entries(from).map(async ([key, sub]) => {
@@ -46,6 +49,14 @@ class Clasync extends ClasyncBase {
       await this.finish(sub, reason);
       delete from[key];
     }));
+
+    for (let p, o = t; o.beforeFinal; p = o.beforeFinal, o = Object.getPrototypeOf(o)) {
+      if (o.beforeFinal !== p) try {
+        await o.beforeFinal.call(t, reason);
+      } catch (err) {
+        this.throw(err, 'FINALIZER ERROR');
+      }
+    }
 
     for (let p, o = t; o.final; p = o.final, o = Object.getPrototypeOf(o)) {
       if (o.final !== p) try {
@@ -65,39 +76,59 @@ class Clasync extends ClasyncBase {
 }
 
 function ClasyncBase(config, $$) {
-  return ClasyncCtor(Object.assign(this, config), $$);
+  const promise = ClasyncCtor(Object.assign(this, config), $$);
+  return promise;
 }
 
 async function ClasyncCtor(t, $$) {
-  const inits = [];
-  const inst = {createdAt: new Date(), id: Clasync.nextId++, init$$: !$$, $$};
-  inst.waitInited = new Promise((resolve) => { inst.setInited = resolve; });
-  inst.waitFinal = new Promise((resolve) => { inst.setFinal = resolve; });
-  inst.waitFinaled = new Promise((resolve) => { inst.setFinaled = resolve; });
-  if (!$$) inst.$$ = t;
+  try {
+    const inits = [];
+    const afterInits = [];
 
-  Object.defineProperties(t, {
-    [Clasync.instance]: {value: inst},
-    $$: {value: inst.$$},
-    $: {value: t.constructor}
-  });
+    const inst = {createdAt: new Date(), id: Clasync.nextId++, init$$: !$$, $$};
+    inst.waitInited = new Promise((resolve) => { inst.setInited = resolve; });
+    inst.waitFinal = new Promise((resolve) => { inst.setFinal = resolve; });
+    inst.waitFinaled = new Promise((resolve) => { inst.setFinaled = resolve; });
+    if (!$$) inst.$$ = t;
 
-  await t.$.tick();
+    Object.defineProperties(t, {
+      [Clasync.instance]: {value: inst},
+      $$: {value: inst.$$},
+      $: {value: t.constructor}
+    });
 
-  for (let o = t; o.init; o = Object.getPrototypeOf(o)) {
-    if (o.init !== inits[0]) inits.unshift(o.init);
+    await t.$.tick();
+
+    for (let o = t; o.init; o = Object.getPrototypeOf(o)) {
+      if (o.init !== inits[0]) inits.unshift(o.init);
+    }
+
+    for (let o = t; o.afterInit; o = Object.getPrototypeOf(o)) {
+      if (o.afterInit !== afterInits[0]) afterInits.unshift(o.afterInit);
+    }
+
+    const sub = Clasync.subSet.bind(t);
+
+    for (const init of inits) {
+      const subObj = await init.call(t, sub);
+      if (subObj) await sub(subObj);
+    }
+
+    for (const afterInit of afterInits) {
+      const subObj = await afterInit.call(t, sub);
+      if (subObj) await sub(subObj);
+    }
+
+    inst.inited = true;
+    inst.setInited(true);
+
+    return t;
+  } catch (err) {
+    if (t.initFatal) {
+      const obj = await t.initFatal(err);
+      return obj || t;
+    } else throw err;
   }
-
-  const sub = Clasync.subSet.bind(t);
-
-  for (const init of inits) {
-    const subObj = await init.call(t, sub);
-    if (subObj) await sub(subObj);
-  }
-
-  inst.inited = true;
-  inst.setInited(true);
-  return t;
 }
 
 Object.assign(Clasync, ClasyncError);
@@ -110,4 +141,4 @@ Clasync.nextId = 1;
 
 module.exports = Clasync;
 
-Clasync.autorun(require.main).catch(Clasync.logFatal);
+Clasync.autorun(require.main).catch(err => Clasync.logFatal(err));

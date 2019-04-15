@@ -28,7 +28,7 @@ const ClasyncError = {
 
   throw(err, opts) {
     this.prettyError(err, opts);
-    if (typeof opts !== 'string' && opts.exit != null) process.exit(opts.exit);
+    if (typeof opts !== 'string' && opts.exit != null) this.exit(opts.exit);
   },
 
   getStack(err) {
@@ -81,6 +81,7 @@ const ClasyncError = {
 
   prettyStackPointAt(line) {
     const [, method] = line.match(this.rxStackPointAt) || [];
+    if (!method) return null;
     const newLine = `${this.prettyStackPfx}${method}`;
     return newLine;
   },

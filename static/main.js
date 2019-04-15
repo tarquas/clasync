@@ -58,6 +58,7 @@ const ClasyncMain = {
       const reason = await inst.waitFinaled;
       process.exit(reason);
     } catch (err) {
+      if (this.mainFatal && await this.mainFatal(err)) return;
       this.throw(err, {title: 'UNHANDLED EXCEPTION', exit: 1});
     }
   },

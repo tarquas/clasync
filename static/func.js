@@ -148,6 +148,19 @@ ClasyncFunc = {
     return false;
   },
 
+  firstKey(obj) {
+    for (const key in obj) return key;
+  },
+
+  firstValue(obj) {
+    for (const key in obj) return obj[key];
+  },
+
+  firstEntry(obj) {
+    for (const key in obj) return [key, obj[key]];
+    return [];
+  },
+
   invert(obj) {
     const result = ClasyncFunc.makeObject(Object.entries(obj).map(([k, v]) => ({[v]: k})));
     return result;
@@ -292,6 +305,11 @@ ClasyncFunc = {
 
     return res;
   },
+
+  regExpInput(s) {
+    const result = s.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+    return result;
+  }
 
   rxDotSplit: /^([^\.]*)(?:\.(.*))?$/,
 
