@@ -66,3 +66,18 @@ Main module / error logging (index.js; static/error.js):
 Functional (static/func.js):
 - Add `firstKey()`, `firstValue()`, `firstEntry()`;
 - Add `regExpInput()`.
+
+*** Version 0.3.11 - 2019-05-24
+
+Functional (static/func.js):
+- Make `.makeObject()` use null-prototype object as a base.
+
+MQ Dispatcher (mq/disp.js):
+- Register inline workers in `afterInit()`.
+
+MQ Mongo-based (mq/mongo/):
+- Do not try to signal queue if queue item is lost;
+- Set default remote to local time sync retries to 3.
+
+Web (web/rest.js):
+- Register inline routes in `afterInit()`. 

@@ -122,7 +122,7 @@ class MqMongo extends Clasync {
       {select: {queue: 1}}
     ).lean().exec();
 
-    await this.signalQueue(item.queue);
+    if (item) await this.signalQueue(item.queue);
     return item;
   }
 
@@ -192,25 +192,30 @@ class MqMongo extends Clasync {
     return true;
   }
 
-  async getNow() {
-    const start = process.uptime();
+  async syncTime() {
+    let retries = this.$.maxSyncRetries;
 
-    const item = await util.promisify(this.pubsubColl.findOneAndUpdate).call(
-      this.pubsubColl,
-      {_id: this.$.nullObjectId},
-      {$currentDate: {curDate: true}},
-      {upsert: true, returnOriginal: false}
-    );
+    while (true) {
+      const start = process.uptime();
 
-    const diff = process.uptime() - start;
+      const item = await util.promisify(this.pubsubColl.findOneAndUpdate).call(
+        this.pubsubColl,
+        {_id: this.$.nullObjectId},
+        {$currentDate: {curDate: true}},
+        {upsert: true, returnOriginal: false}
+      );
 
-    if (diff >= this.$.lagLatencySec) {
-      await this.$.delay(this.$.pubsubRetryMsec); // wait before next check to avoid flood
-      throw new Error('MQ PubSub Sync: network latency is too big, trying again in 2 sec');
+      const diff = process.uptime() - start;
+
+      if (diff >= this.$.lagLatencySec) {
+        await this.$.delay(this.$.pubsubRetryMsec); // wait before next check to avoid flood
+        if (--retries) continue;
+        throw new Error('MQ PubSub Sync: network latency is too big. Worker disabled');
+      }
+
+      const curDate = this.$.get(item, 'value', 'curDate');
+      return curDate;
     }
-
-    const curDate = this.$.get(item, 'value', 'curDate');
-    return curDate;
   }
 
   worker(queue, onData) {
@@ -230,7 +235,7 @@ class MqMongo extends Clasync {
 
     object.promise = new Promise(async (resolve, reject) => { // eslint-disable-line
       try {
-        object.sync = (await this.getNow()) - new Date();
+        object.sync = (await this.syncTime()) - new Date();
         object.queue = queue;
 
         while (!object.halt) { // eslint-disable-line
@@ -266,7 +271,7 @@ class MqMongo extends Clasync {
           const diff = process.uptime() - start;
 
           if (!item) {
-            const curDate = await this.getNow();
+            const curDate = await this.syncTime();
             if (diff < this.$.lagLatencySec) object.sync = curDate - new Date();
 
             this.setFreeWorker(workerId);
@@ -700,5 +705,6 @@ MqMongo.prolongMsec = MqMongo.accuracyMsec;
 MqMongo.nowSyncMsec = MqMongo.accuracyMsec / 2;
 MqMongo.lagLatencySec = MqMongo.nowSyncMsec / 4000;
 MqMongo.maxRequeuesOnError = 3;
+MqMongo.maxSyncRetries = 3;
 
 module.exports = MqMongo;

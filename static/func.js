@@ -71,7 +71,7 @@ ClasyncFunc = {
   },
 
   makeObject(parts) {
-    const result = Object.assign({}, ...parts);
+    const result = Object.assign(Object.create(null), ...parts);
     return result;
   },
 

@@ -91,7 +91,9 @@ class WebRest extends Clasync {
 
   async init() {
     this._prefix = this.prefix || '';
+  }
 
+  async afterInit() {
     for (const action of Object.getOwnPropertyNames(Object.getPrototypeOf(this))) {
       this.addRoute(action);
     }

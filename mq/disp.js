@@ -65,7 +65,9 @@ class MqDisp extends Clasync {
   async init() {
     this._prefix = this.prefix || '';
     this.handlers = {};
+  }
 
+  async afterInit() {
     for (const action of Object.getOwnPropertyNames(Object.getPrototypeOf(this))) {
       await this.addHandler(action); // eslint-disable-line
     }
