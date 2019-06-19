@@ -2,7 +2,7 @@ let ClasyncFunc;
 
 ClasyncFunc = {
   private(fields) {
-    const res = {};
+    const res = Object.create(null);
 
     for (const [field, value] of Object.entries(fields)) {
       if (typeof value !== 'function') res[field] = value;
@@ -62,7 +62,7 @@ ClasyncFunc = {
     const last = walk.pop();
 
     for (const step of walk) {
-      if (p[step] == null) p[step] = typeof step === 'number' ? [] : {};
+      if (p[step] == null) p[step] = typeof step === 'number' ? [] : ClasyncFunc.makeObject();
       p = p[step];
     }
 
@@ -70,8 +70,8 @@ ClasyncFunc = {
     return p;
   },
 
-  makeObject(parts) {
-    const result = Object.assign(Object.create(null), ...parts);
+  makeObject(...parts) {
+    const result = Object.assign(Object.create(null), ...ClasyncFunc.flatten(parts));
     return result;
   },
 
@@ -79,7 +79,7 @@ ClasyncFunc = {
 
   uniqKeys(what, def) {
     const keys = ClasyncFunc.makeObject(what.map(i => (
-      i instanceof Array ? Object.assign({}, ...i.map(j => ({[j]: def}))) :
+      i instanceof Array ? ClasyncFunc.makeObject(i.map(j => ({[j]: def}))) :
       typeof i in ClasyncFunc.objectOrUndefined ? i : ({[i]: def})
     )));
 
@@ -316,7 +316,7 @@ ClasyncFunc = {
   setTree(obj, to, opts) {
     if (typeof obj !== 'object') return obj;
     const o = opts || {};
-    const r = to || {};
+    const r = to || ClasyncFunc.makeObject();
 
     for (const [k, v] of Object.entries(obj)) {
       const [, key, rest] = k.match(ClasyncFunc.rxDotSplit) || [];
@@ -325,7 +325,7 @@ ClasyncFunc = {
       if (isObj) {
         ClasyncFunc.setTree(
           rest ? {[rest]: v} : v,
-          typeof r[key] === 'object' ? r[key] : (r[key] = {}),
+          typeof r[key] === 'object' ? r[key] : (r[key] = ClasyncFunc.makeObject()),
           opts
         );
       } else {

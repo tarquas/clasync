@@ -20,7 +20,7 @@ const adapterMaker = (mq, options) => {
       this.super = Object.getPrototypeOf(Object.getPrototypeOf(this));
       this.encoder = this.nsp.adapter.encoder;
       this.event = `${prefix}-socket.io`;
-      this.subs = {};
+      this.subs = DbMongo.makeObject();
       this.mq = mq;
       this.onmessageBound = this.onmessage.bind(this);
       this.connected = this.initMq();
@@ -114,7 +114,7 @@ const adapterMaker = (mq, options) => {
     async delAll(id, fn) {
       try {
         await this.connected;
-        const rooms = this.sids[id] || {};
+        const rooms = this.sids[id] || DbMongo.makeObject();
         this.super.delAll.call(this, id);
 
         await Promise.all(Object.keys(rooms).map(async (roomId) => {

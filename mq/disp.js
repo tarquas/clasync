@@ -37,20 +37,31 @@ class MqDisp extends Clasync {
   }
 
   async addHandler(action, customHandler) {
-    const [ents, socket, queue] = action.match(this.$.rxSocketQueue) || [];
+    const [ents, subs, socket, queue] = action.match(this.$.rxSocketQueue) || [];
     if (!ents) return;
     const handler = customHandler || this[action];
     const func = this.mq[socket.toLowerCase()];
     if (!func) return;
     const fullName = `${this._prefix}${queue}`;
-    const handlerId = await func.call(this.mq, fullName, handler.bind(this));
-    this.handlers[action] = handlerId;
+
+    let ac = this.handlers[action];
+    if (!ac) this.handlers[action] = ac = [];
+    const n = subs || 1;
+
+    for (let i = 0; i < n; i++) {
+      const handlerId = await func.call(this.mq, fullName, handler.bind(this));
+      ac.push(handlerId);
+    }
   }
 
   async removeHandler(action) {
-    const handlerId = this.handlers[action];
-    if (handlerId == null) return;
-    await this.mq.unhandle(handlerId);
+    const handlers = this.handlers[action];
+    if (handlers == null) return;
+
+    for (const handlerId of handlers) {
+      await this.mq.unhandle(handlerId);
+    }
+
     delete this.handlers[action];
   }
 
@@ -64,7 +75,7 @@ class MqDisp extends Clasync {
 
   async init() {
     this._prefix = this.prefix || '';
-    this.handlers = {};
+    this.handlers = this.$.makeObject();
   }
 
   async afterInit() {
@@ -78,6 +89,6 @@ class MqDisp extends Clasync {
   }
 }
 
-MqDisp.rxSocketQueue = /^(\w+)\s+(\S+)$/;
+MqDisp.rxSocketQueue = /^(?:(\d+)\s*\*\s*)?(\w+)\s+(\S+)$/;
 
 module.exports = MqDisp;

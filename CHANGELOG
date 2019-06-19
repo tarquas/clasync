@@ -81,3 +81,11 @@ MQ Mongo-based (mq/mongo/):
 
 Web (web/rest.js):
 - Register inline routes in `afterInit()`. 
+
+*** Version 0.4.0 - 2019-06-19
+
+Overall
+- Prefer makeObject() for creating dictionaries.
+
+MQ Dispatcher (mq/disp.js):
+- Support multiple registrations of the same inline worker as `N*TYPE name`, f.x. `4*WORKER processUsers`.

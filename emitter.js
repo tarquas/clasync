@@ -3,7 +3,7 @@ let $;
 
 class ClasyncEmitter extends Clasync {
   async init() {
-    $.emitterEvents.set(this, {});
+    $.emitterEvents.set(this, this.$.makeObject());
   }
 
   async final() {
@@ -20,7 +20,7 @@ class ClasyncEmitter extends Clasync {
 
     if (!emitterEvents) {
       handlers = new Map();
-      byStages = {};
+      byStages = this.$.makeObject();
       stages = [];
       _emitterEvents[event] = emitterEvents = {handlers, byStages, stages};
     } else {
@@ -166,7 +166,7 @@ $ = Clasync.private({
       typeof v === 'object' ? v :
       typeof v === 'function' ? v() :
       {[v]: true}
-    )).reduce((v1, v2) => Object.assign(v1, v2), {});
+    )).reduce((v1, v2) => Object.assign(v1, v2), this.$.makeObject());
 
     return result;
   }

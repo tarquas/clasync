@@ -56,7 +56,7 @@ class MqMongo extends Clasync {
     const workerId = this.workerIdNext++;
 
     let subHandlers = this.subs[event];
-    if (!subHandlers) this.subs[event] = subHandlers = {};
+    if (!subHandlers) this.subs[event] = subHandlers = this.$.makeObject();
 
     const object = {
       sub: event
@@ -187,7 +187,7 @@ class MqMongo extends Clasync {
     if (!worker) return false;
     const {queue} = worker;
     let free = this.freeWorkers[queue];
-    if (!free) this.freeWorkers[queue] = free = {};
+    if (!free) this.freeWorkers[queue] = free = this.$.makeObject();
     free[`+${workerId}`] = true;
     return true;
   }
@@ -630,11 +630,11 @@ class MqMongo extends Clasync {
     await sub({mqModel: MqMongoModel.sub({db: this.dbMongo})});
     this.Model = this.model = this.mqModel.model;
 
-    this.subs = {};
-    this.subWait = {};
-    this.workers = {};
+    this.subs = this.$.makeObject();
+    this.subWait = this.$.makeObject();
+    this.workers = this.$.makeObject();
     this.workerIdNext = 1;
-    this.freeWorkers = {};
+    this.freeWorkers = this.$.makeObject();
 
     this.waitTerminate = new Promise((resolve) => {
       this.terminate = resolve;

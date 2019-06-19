@@ -164,7 +164,7 @@ class WebSocket extends Clasync {
     Object.assign(context, {
       socket,
       onDisconnect: this.onDisconnection.bind(context),
-      socketSubs: {}
+      socketSubs: this.$.makeObject()
     });
 
     socket.on('disconnect', context.onDisconnect);
@@ -230,8 +230,8 @@ class WebSocket extends Clasync {
 
     Object.assign(this, {
       io,
-      subscriptions: {},
-      socketContexts: {}
+      subscriptions: this.$.makeObject(),
+      socketContexts: this.$.makeObject()
     });
 
     this.addSubscriptions();

@@ -104,6 +104,6 @@ class Web extends Clasync {
 }
 
 Object.assign(Web, {express, static: express.static, basicAuth});
-Web.binds = {};
+Web.binds = Web.makeObject();
 
 module.exports = Web;

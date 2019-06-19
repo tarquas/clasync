@@ -41,7 +41,7 @@ const ClasyncPromise = {
     const arr = Object.values(promises);
     const results = await aggr(arr);
     if (single) return results;
-    const object = Object.assign({}, ...names.map((v, k) => ({[v]: results[k]})));
+    const object = this.$.makeObject(names.map((v, k) => ({[v]: results[k]})));
     return object;
   },
 

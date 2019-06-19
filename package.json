@@ -1,6 +1,6 @@
 {
   "name": "clasync",
-  "version": "0.3.11",
+  "version": "0.4.0",
   "description": "[Node.js] CLASses ASYNChronous",
   "main": "index.js",
   "scripts": {
@@ -37,28 +37,28 @@
   "license": "MIT",
   "dependencies": {
     "basic-auth": "^2.0.1",
-    "body-parser": "^1.18.3",
-    "compression": "^1.7.3",
+    "body-parser": "^1.19.0",
+    "compression": "^1.7.4",
     "cors": "^2.8.5",
-    "express": "^4.16.4",
+    "express": "^4.17.1",
     "httpolyglot": "^0.1.2",
-    "mongodb": "^3.1.13",
-    "mongoose": "^5.4.8",
+    "mongodb": "^3.2.7",
+    "mongoose": "^5.6.0",
     "multer": "^1.4.1",
     "socket.io": "^2.2.0",
     "socket.io-adapter": "^1.1.1",
     "socket.io-client": "^2.2.0",
-    "stripe": "^6.23.0"
+    "stripe": "^6.36.0"
   },
   "devDependencies": {
     "chai": "^4.2.0",
-    "eslint": "^5.12.1",
+    "eslint": "^5.16.0",
     "eslint-config-airbnb-base": "^13.1.0",
-    "eslint-plugin-import": "^2.16.0",
+    "eslint-plugin-import": "^2.17.3",
     "istanbul": "^0.4.5",
     "jsinspect": "^0.12.7",
     "mocha": "^5.2.0",
-    "mochawesome": "^3.1.1"
+    "mochawesome": "^3.1.2"
   },
   "engines": {
     "node": "^8.9.1",

@@ -1,18 +1,17 @@
 const Clasync = require('..');
 const stripe = require('stripe');
-const util = require('util');
 
 class Pay extends Clasync {
   // key: Stripe secret key (sk_...)
 
   static get type() { return 'pay'; }
 
-  static promisify(from, to = {}) {
+  static promisifyAll(from, to = {}) {
     for (const key of Reflect.ownKeys(from)) {
       if (key.match(this.rxPrivateField)) continue;
       const what = from[key];
-      if (typeof what === 'function') to[key] = util.promisify(what).bind(from);
-      else if (typeof what === 'object') to[key] = this.promisify(what);
+      if (typeof what === 'function') to[key] = this.$.promisify(from, what);
+      else if (typeof what === 'object') to[key] = this.$.promisifyAll(what);
       else to[key] = what;
     }
 
@@ -21,7 +20,7 @@ class Pay extends Clasync {
 
   async init() {
     this.stripe = stripe(this.key);
-    this.$.promisify(this.stripe, this);
+    this.$.promisifyAll(this.stripe, this);
     await this.disputes.list();
   }
 

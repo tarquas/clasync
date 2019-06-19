@@ -5,7 +5,7 @@ class Cache {
   }) {
     this.maxLifetime = maxLifetime | 0;
     this.maxCount = maxCount | 0;
-    this.cache = {};
+    this.cache = this.$.makeObject();
     this.nCache = 0;
   }
 
@@ -35,7 +35,7 @@ class Cache {
   add(key, object) {
     let obj = this.cache[key];
     if (obj) this.remove(key);
-    else obj = {};
+    else obj = this.$.makeObject();
     obj.usedAt = new Date() - 0;
     if (object) obj.object = object;
     this.cache[key] = obj;
