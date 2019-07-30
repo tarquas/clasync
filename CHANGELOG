@@ -88,4 +88,4 @@ Overall
 - Prefer makeObject() for creating dictionaries.
 
 MQ Dispatcher (mq/disp.js):
-- Support multiple registrations of the same inline worker as `N*TYPE name`, f.x. `4*WORKER processUsers`.
+- Support multiple handlers of the same inline worker as `N*TYPE name`, f.x. `4*WORKER processUsers`.

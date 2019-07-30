@@ -16,6 +16,14 @@ ClasyncFunc = {
     return arg;
   },
 
+  null() {
+    return null;
+  }
+
+  bound() {
+    return this;
+  }
+
   async aecho(arg) {
     return arg;
   },
