@@ -9,6 +9,8 @@ class WebSocket extends Clasync {
 
   static get type() { return 'socket'; }
 
+  static get Mq() { return WebSocket.Mq = require('./socket-mq'); }
+
   async error(err, {action}) {
     if (!this.errorSilent) this.$.throw(err, `WEBSOCKET ${action}`);
     return true;

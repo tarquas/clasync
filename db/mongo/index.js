@@ -11,6 +11,8 @@ class DbMongo extends Clasync {
 
   static get type() { return 'db'; }
 
+  static get Model() { return require('./model'); }
+
   static newObjectId() {
     const objectId = this.ObjectId();
     return objectId;

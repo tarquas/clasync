@@ -6,6 +6,17 @@ const ClasyncFunc = require('./static/func');
 class Clasync extends ClasyncBase {
   static get $() { return this; }
 
+  static get Db() { return require('./db'); }
+  static get Mq() { return require('./mq'); }
+  static get Pay() { return require('./pay'); }
+  static get Thread() { return require('./thread'); }
+  static get Web() { return require('./web'); }
+  static get Worker() { return require('./worker'); }
+
+  static get Cache() { return require('./cache'); }
+  static get Crypt() { return require('./crypt'); }
+  static get Emitter() { return require('./emitter'); }
+
   static async subSet(sub) {
     const inst = this[Clasync.instance];
     if (!inst || !sub || typeof sub !== 'object') return;
@@ -73,6 +84,10 @@ class Clasync extends ClasyncBase {
   static sub(config) {
     return [this, config];
   }
+
+  static new(config) {
+    return this.sub(config);
+  }
 }
 
 function ClasyncBase(config, $$) {
@@ -138,6 +153,10 @@ Object.assign(Clasync, ClasyncFunc);
 
 Clasync.instance = Symbol('Clasync.instance');
 Clasync.nextId = 1;
+
+Clasync.App = class App extends Clasync {
+  static get type() { return 'app'; }
+};
 
 module.exports = Clasync;
 

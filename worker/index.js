@@ -1,12 +1,13 @@
 const cluster = require('cluster');
 const {isMaster} = cluster;
 
-if (isMaster) throw 'Referencing Worker class from master process is not allowed';
-
 const ClasyncEmitter = require('../emitter');
 
 class Worker extends ClasyncEmitter {
+  static get Pool() { return require('./pool'); }
+
   async init() {
+    if (isMaster) throw new Error('Referencing Worker class from master process is not allowed');
     if (this.$.workerInst) throw new Error('Only 1 instance of Worker class is allowed per worker');
     this.$.workerInst = this;
     process.on('message', this.message.bind(this));

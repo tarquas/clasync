@@ -89,3 +89,15 @@ Overall
 
 MQ Dispatcher (mq/disp.js):
 - Support multiple handlers of the same inline worker as `N*TYPE name`, f.x. `4*WORKER processUsers`.
+
+*** Version 0.5.0 - 2019-08-03
+
+Overall
+- Add all classes to tree under base class, f.x. `require('clasync').Web` is same as `require('clasync/web')`.
+
+Functional (static/func.js):
+- Add mappings: `null`, `bound`;
+- Add reducing: `min`, `max`.
+
+Workers and Threads (workers/*; threads/*):
+- Add own classes for `'cluster'` (`Worker`) and `'worker_threads'` (`Thread`).

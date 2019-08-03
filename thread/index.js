@@ -1,19 +1,18 @@
-let threads;
+let threads, parentPort, isMainThread;
 
 try {
   threads = require('worker_threads');
-} catch (err) {
-  throw 'worker_threads module is not supported. please use Node > 11.10 to start this app';
-}
-
-const {parentPort, isMainThread} = threads;
-
-if (isMainThread) throw 'Referencing Thread class from main thread is not allowed';
+  ({parentPort, isMainThread} = threads);
+} catch (err) { }
 
 const ClasyncEmitter = require('../emitter');
 
 class Thread extends ClasyncEmitter {
+  static get Pool() { return require('./pool'); }
+
   async init() {
+    if (!threads) throw new Error('worker_threads module is not supported. please use Node > 11.10 to start this app');
+    if (isMainThread) throw new Error('Referencing Thread class from main thread is not allowed');
     if (this.$.threadInst) throw new Error('Only 1 instance of Thread class is allowed per worker');
     this.$.threadInst = this;
     parentPort.on('message', this.message.bind(this));

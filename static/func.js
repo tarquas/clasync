@@ -18,11 +18,11 @@ ClasyncFunc = {
 
   null() {
     return null;
-  }
+  },
 
   bound() {
     return this;
-  }
+  },
 
   async aecho(arg) {
     return arg;
@@ -38,6 +38,14 @@ ClasyncFunc = {
 
   safeSum(a, b) {
     return (+a || 0) + (+b || 0);
+  },
+
+  max(a, b) {
+    return Math.max(a,b);
+  },
+
+  min(a, b) {
+    return Math.min(a,b);
   },
 
   get(object, ...walk) {

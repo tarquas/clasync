@@ -2,7 +2,7 @@
 # clasync
 **[Node.js]** *CL*ASses AS*YNC*hronous
 *Your powerful asynchronous imperative code OOP framework.*
-Latest version: 0.4.0
+Latest version: 0.5.0
 
 `npm i -S clasync`
 
@@ -11,9 +11,9 @@ Below is a bunch of intuitive stuff and main explanations on lifecycle of this f
 
 `dep.js`
 ```js
-const Clasync = require('clasync');
+const {$} = require('clasync');
 
-class Dep extends Clasync {  // this class extends framework directly
+class Dep extends $ {  // this class extends framework directly
 
   // framework handlers
 
@@ -51,10 +51,10 @@ module.exports = Dep;
 
 `index.js`
 ```js
-const Clasync = require('clasync');
+const {App} = require('clasync');
 const Dep = require('./dep');
 
-class Main extends Clasync {
+class Main extends App {
 
   // framework handlers
 
@@ -66,7 +66,7 @@ class Main extends Clasync {
 
   async init(deps) {  // initialization with dependencies
     await deps({
-      $dep: Dep.sub(this.dep)  // declare dependency: `Dep` with configuration
+      $dep: Dep.new(this.dep)  // declare dependency: `Dep` with configuration
     });
 
     this.$.log('App and all its dependencies are ready');
@@ -87,7 +87,6 @@ class Main extends Clasync {
 Main.gracefulShutdownMsec = 6000;
 
 module.exports = Main;
-
 ```
 `node .`
 ```
@@ -130,9 +129,9 @@ Launch again and after `Main started` press Ctrl+C twice. Application will termi
 ## Async Events
 `events.js`
 ```js
-const ClasyncEmitter = require('clasync/emitter');
+const {Emitter} = require('../clasync');
 
-class Main extends ClasyncEmitter {  // this class extends framework indirectly
+class Main extends Emitter {  // this class extends framework indirectly
 
   // framework handlers
 

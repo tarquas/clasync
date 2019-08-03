@@ -15,6 +15,12 @@ class Web extends Clasync {
 
   static get type() { return 'web'; }
 
+  static get Api() { return require('./api'); }
+  static get Rest() { return require('./rest'); }
+  static get Socket() { return require('./socket'); }
+  static get SocketMq() { return require('./socket-mq'); }
+  static get Upload() { return require('./upload'); }
+
   createServers() {
     const bind = `WEB ${this.bind}`;
     const exists = Web.binds[bind];
