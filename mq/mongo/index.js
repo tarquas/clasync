@@ -38,7 +38,7 @@ class MqMongo extends Clasync {
   get queueName() { return 'pubsubQueue'; }
   get queuePfx() { return 'queue:'; }
   get newTaskEvent() { return 'newTask'; }
-  get emptyEvent() { return 'empty'; }
+  get sleepEvent() { return 'sleep'; }
 
   async pub(event, payload) {
     if (this.finishing) return null;
@@ -69,9 +69,9 @@ class MqMongo extends Clasync {
     return workerId;
   }
 
-  async signalQueue(queue) {
-    this.pub(`${this.queuePfx}${this.newTaskEvent}:${queue}`, queue);
-    const inserted = await this.pub(`${this.queuePfx}${this.newTaskEvent}`, queue);
+  async signalQueue({queue, at, expires}) {
+    this.pub(`${this.queuePfx}${this.newTaskEvent}:${queue}`, {queue, at, expires});
+    const inserted = await this.pub(`${this.queuePfx}${this.newTaskEvent}`, {queue, at, expires});
     return inserted;
   }
 
@@ -82,7 +82,7 @@ class MqMongo extends Clasync {
     const id = this.dbMongo.newShortId();
     const $currentDate = {curDate: {$type: 'timestamp'}};
 
-    const $set = {
+    let $set = {
       _id: id,
       queue,
       message: payload,
@@ -105,16 +105,19 @@ class MqMongo extends Clasync {
     const item = await this.model.findOneAndUpdate(
       {date: true},
       {$currentDate, $set},
-      {upsert: true, new: true}
+      {upsert: true, new: true, select: {queue: 1, date: 1, nRequeues: 1}}
     ).lean().exec();
 
     const ttl = (opts.ttl | 0) || (opts.temp && this.visibilityMsec);
 
-    if (ttl) await this.model.updateOne({_id: id}, {$set: {
-      expires: new Date(+item.date + ttl)
-    }}).exec();
+    if (ttl) {
+      $set = {expires: new Date(+item.date + ttl)};
+      await this.model.updateOne({_id: id}, {$set}).exec();
+    }
 
-    await this.signalQueue(queue);
+    item.expires = $set.expires;
+
+    await this.signalQueue({queue, at: item.date, expires: item.expires});
     return item;
   }
 
@@ -137,10 +140,10 @@ class MqMongo extends Clasync {
     const item = await this.model.findOneAndUpdate(
       {_id: id},
       upd,
-      {select: {queue: 1}}
+      {select: {queue: 1, date: 1, nRequeues: 1}, new: true}
     ).lean().exec();
 
-    if (item) await this.signalQueue(item.queue);
+    if (item) await this.signalQueue({queue: item.queue});
     return item;
   }
 
@@ -178,7 +181,7 @@ class MqMongo extends Clasync {
     );
   }
 
-  takeFreeWorker(queue) {
+  takeFreeWorker({queue}) {
     const free = this.freeWorkers[queue];
     if (!free) return false;
 
@@ -307,8 +310,8 @@ class MqMongo extends Clasync {
               if (nextDelay < delay) delay = nextDelay;
             }
 
-            this.pub(`${this.queuePfx}${this.emptyEvent}`, queue);
-            this.pub(`${this.queuePfx}${this.emptyEvent}:${queue}`, queue);
+            this.pub(`${this.queuePfx}${this.sleepEvent}`, {queue, delay});
+            this.pub(`${this.queuePfx}${this.sleepEvent}:${queue}`, {queue, delay});
 
             await this.$.race([object.wait, this.$.delay(delay)]);
 
@@ -716,7 +719,7 @@ class MqMongo extends Clasync {
 
       if (object.waitImportant) {
         await object.waitImportant;
-        await this.signalQueue(object.queue);
+        await this.signalQueue({queue: object.queue, event: 'final'});
       } else {
         await this.requeue(object.id);
       }

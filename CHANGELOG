@@ -102,14 +102,14 @@ Functional (static/func.js):
 Workers and Threads (worker/*; thread/*):
 - Add own classes for `'cluster'` (`$.Worker`) and `'worker_threads'` (`$.Thread`).
 
-*** Version 0.6.0 - 2019-08-16
+*** Version 0.6.1 - 2019-08-17
 
 MQ Mongo-based (mq/mongo/):
-- Add `queue:empty` pubsub event when queue runs out of tasks;
+- Add `queue:sleep` pubsub event when queue runs out of active tasks;
 - Add `at`, `in` options for `.push()`;
 - Add `expires`, `ttl` options for `.push()`;
 - Add `.push()` options support to `.rpc()`;
-- Remove `queueEventName`. Add `queuePfx`, `newTaskEvent`, `emptyEvent`;
+- Remove `queueEventName`. Add `queuePfx`, `newTaskEvent`, `sleepEvent`;
 - Per-instance `visibilityMsec` value.
 
 MQ Dispatcher (mq/disp.js):
