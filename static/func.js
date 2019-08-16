@@ -328,6 +328,8 @@ ClasyncFunc = {
   },
 
   rxDotSplit: /^([^\.]*)(?:\.(.*))?$/,
+  rxIds: /\w+/g,
+  rxNestIds: /[\w\.]+/g,
 
   setTree(obj, to, opts) {
     if (typeof obj !== 'object') return obj;

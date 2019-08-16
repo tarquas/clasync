@@ -11,14 +11,14 @@ class MqDisp extends Clasync {
     return await this.mq.pub(fullName, data);
   }
 
-  async push(queue, data) {
+  async push(queue, data, opts) {
     const fullName = `${this._prefix}${queue}`;
-    return await this.mq.push(fullName, data);
+    return await this.mq.push(fullName, data, opts);
   }
 
-  async rpc(queue, data) {
+  async rpc(queue, data, opts) {
     const fullName = `${this._prefix}${queue}`;
-    return await this.mq.rpc(fullName, data);
+    return await this.mq.rpc(fullName, data, opts);
   }
 
   sub(event, onData) {

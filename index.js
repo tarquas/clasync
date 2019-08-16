@@ -153,9 +153,13 @@ Object.assign(Clasync, ClasyncFunc);
 
 Clasync.instance = Symbol('Clasync.instance');
 Clasync.nextId = 1;
+Clasync.debugMode = process.env.DEBUG;
+Clasync.debugTopics = (Clasync.debugMode || '').toString().match(Clasync.rxNestIds) || [];
+Clasync.debugIndex = Clasync.invert(Clasync.debugTopics);
 
 Clasync.App = class App extends Clasync {
   static get type() { return 'app'; }
+  static configure() { return {}; }
 };
 
 module.exports = Clasync;

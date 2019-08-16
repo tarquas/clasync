@@ -13,10 +13,21 @@ const ClasyncError = {
     this.logError(...args);
   },
 
-  debugMode: process.env.DEBUG | 0,
+  getDebug(topics) {
+    if (!topics || !this.debugMode) return null;
+    if (typeof topics === 'string') topics = topics.match(this.rxNestIds);
+    else if (!(topics instanceof Array)) topics = Object.keys(topics);
 
-  logDebug(...args) {
-    if (this.debugMode) this.log(...args);
+    for (const topic of topics) {
+      if (topic in this.debugIndex) return topic;
+    }
+
+    return null;
+  },
+
+  logDebug(topics, ...args) {
+    const topic = this.getDebug(topics);
+    if (topic) this.logError(`[${topic}]`, ...args);
   },
 
   prettyError(err, opts) {

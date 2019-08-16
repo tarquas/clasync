@@ -26,10 +26,12 @@ const ClasyncMain = {
   },
 
   async runMain() {
-    if (!this.configure) return;
+    let config = this.configure;
+    if (!config) return;
 
     try {
-      const config = await this.configure();
+      if (typeof config === 'function') config = config();
+      if (typeof config.then === 'function') config = await config;
       const me = this.mainInstance = await new this(config);
       const inst = me[this.instance];
 
@@ -67,6 +69,7 @@ const ClasyncMain = {
     if (!Module) return;
     await this.tick();
     const Class = Module.exports;
+    if (Class === this) throw '[FATAL] Main module may not be a Clasync class itself';
     if (!Class || !Object.isPrototypeOf.call(this, Class)) return;
     await Class.runMain();
   },

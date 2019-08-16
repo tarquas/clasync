@@ -2,7 +2,7 @@
 
 Functional (static/func.js):
 - More isolation with private fields;
-- Remove filtered items from array and return them in new array: `.remove()`.
+- Remove filtered items from array and return them in new array: `$.remove()`.
 
 Events (emmiter.js):
 - Multiple event handling stages (handler rank is identified by a numerical value);
@@ -38,7 +38,7 @@ Main module / error logging (index.js):
 - Static dollar support (circular): `ClasyncClass.$ = ClasyncClass`.
 
 Main module / error logging (index.js; static/error.js):
-- Logging wrappers: `log`, `logError`, `logFatal`, `logDebug`.
+- Logging wrappers: `$.log`, `$.logError`, `$.logFatal`, `$.logDebug`.
 
 *** Version 0.3.8 - 2019-04-05
 
@@ -64,16 +64,16 @@ Main module / error logging (index.js; static/error.js):
 - Minor bugfixes.
 
 Functional (static/func.js):
-- Add `firstKey()`, `firstValue()`, `firstEntry()`;
-- Add `regExpInput()`.
+- Add `$.firstKey()`, `$.firstValue()`, `$.firstEntry()`;
+- Add `$.regExpInput()`.
 
 *** Version 0.3.11 - 2019-05-24
 
 Functional (static/func.js):
-- Make `.makeObject()` use null-prototype object as a base.
+- Make `$.makeObject()` use null-prototype object as a base.
 
 MQ Dispatcher (mq/disp.js):
-- Register inline workers in `afterInit()`.
+- Register inline workers in `$.afterInit()`.
 
 MQ Mongo-based (mq/mongo/):
 - Do not try to signal queue if queue item is lost;
@@ -85,7 +85,7 @@ Web (web/rest.js):
 *** Version 0.4.0 - 2019-06-19
 
 Overall
-- Prefer makeObject() for creating dictionaries.
+- Prefer `$.makeObject()` for creating dictionaries.
 
 MQ Dispatcher (mq/disp.js):
 - Support multiple handlers of the same inline worker as `N*TYPE name`, f.x. `4*WORKER processUsers`.
@@ -96,8 +96,32 @@ Overall
 - Add all classes to tree under base class, f.x. `require('clasync').Web` is same as `require('clasync/web')`.
 
 Functional (static/func.js):
-- Add mappings: `null`, `bound`;
-- Add reducing: `min`, `max`.
+- Add mappings: `$.null`, `$.bound`;
+- Add reducing: `$.min`, `$.max`.
 
 Workers and Threads (worker/*; thread/*):
-- Add own classes for `'cluster'` (`Worker`) and `'worker_threads'` (`Thread`).
+- Add own classes for `'cluster'` (`$.Worker`) and `'worker_threads'` (`$.Thread`).
+
+*** Version 0.6.0 - 2019-08-16
+
+MQ Mongo-based (mq/mongo/):
+- Add `queue:empty` pubsub event when queue runs out of tasks;
+- Add `at`, `in` options for `.push()`;
+- Add `expires`, `ttl` options for `.push()`;
+- Add `.push()` options support to `.rpc()`;
+- Remove `queueEventName`. Add `queuePfx`, `newTaskEvent`, `emptyEvent`;
+- Per-instance `visibilityMsec` value.
+
+MQ Dispatcher (mq/disp.js):
+- Add options support to `.push()` and `.rpc()` wrappers.
+
+Main module (index.js; static/main.js):
+- Add `$.App`;
+- Add flexible `configure`;
+- Fatal error if main module class is `Clasync` itself.
+
+Main module / error logging (index.js; static/error.js):
+- Add support for DEBUG env var: `$.getDebug`, `$.logDebug`.
+
+Functional (static/func.js):
+- `$.all()` and `$.race()` now accept promises in multiple arguments (gets flattened).
