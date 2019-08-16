@@ -69,9 +69,10 @@ class MqMongo extends Clasync {
     return workerId;
   }
 
-  async signalQueue({queue, at, expires}) {
-    this.pub(`${this.queuePfx}${this.newTaskEvent}:${queue}`, {queue, at, expires});
-    const inserted = await this.pub(`${this.queuePfx}${this.newTaskEvent}`, {queue, at, expires});
+  async signalQueue(args) {
+    const {queue} = args;
+    this.pub(`${this.queuePfx}${this.newTaskEvent}:${queue}`, args);
+    const inserted = await this.pub(`${this.queuePfx}${this.newTaskEvent}`, args);
     return inserted;
   }
 
@@ -117,7 +118,13 @@ class MqMongo extends Clasync {
 
     item.expires = $set.expires;
 
-    await this.signalQueue({queue, at: item.date, expires: item.expires});
+    await this.signalQueue({
+      queue,
+      event: 'push',
+      at: item.date,
+      expires: item.expires
+    });
+
     return item;
   }
 
@@ -140,10 +147,17 @@ class MqMongo extends Clasync {
     const item = await this.model.findOneAndUpdate(
       {_id: id},
       upd,
-      {select: {queue: 1, date: 1, nRequeues: 1}, new: true}
+      {select: {queue: 1, date: 1, expires: 1, nRequeues: 1}, new: true}
     ).lean().exec();
 
-    if (item) await this.signalQueue({queue: item.queue});
+    if (item) await this.signalQueue({
+      queue: item.queue,
+      event: 'requeue',
+      at: item.date,
+      expires: item.expires,
+      errors: item.nRequeues
+    });
+
     return item;
   }
 

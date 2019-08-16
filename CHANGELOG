@@ -102,7 +102,7 @@ Functional (static/func.js):
 Workers and Threads (worker/*; thread/*):
 - Add own classes for `'cluster'` (`$.Worker`) and `'worker_threads'` (`$.Thread`).
 
-*** Version 0.6.1 - 2019-08-17
+*** Version 0.6.2 - 2019-08-17
 
 MQ Mongo-based (mq/mongo/):
 - Add `queue:sleep` pubsub event when queue runs out of active tasks;
@@ -110,7 +110,8 @@ MQ Mongo-based (mq/mongo/):
 - Add `expires`, `ttl` options for `.push()`;
 - Add `.push()` options support to `.rpc()`;
 - Remove `queueEventName`. Add `queuePfx`, `newTaskEvent`, `sleepEvent`;
-- Per-instance `visibilityMsec` value.
+- Per-instance `visibilityMsec` value;
+- Verbose `queue:newTask` pubsub events.
 
 MQ Dispatcher (mq/disp.js):
 - Add options support to `.push()` and `.rpc()` wrappers.
@@ -118,7 +119,8 @@ MQ Dispatcher (mq/disp.js):
 Main module (index.js; static/main.js):
 - Add `$.App`;
 - Add flexible `configure`;
-- Fatal error if main module class is `Clasync` itself.
+- Fatal error if main module class is `Clasync` itself;
+- Fix bug with `.exit()`.
 
 Main module / error logging (index.js; static/error.js):
 - Add support for DEBUG env var: `$.getDebug`, `$.logDebug`.

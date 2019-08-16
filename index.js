@@ -17,6 +17,10 @@ class Clasync extends ClasyncBase {
   static get Crypt() { return require('./crypt'); }
   static get Emitter() { return require('./emitter'); }
 
+  static async setMainInstance(inst) {
+    Clasync.mainInstance = inst;
+  }
+
   static async subSet(sub) {
     const inst = this[Clasync.instance];
     if (!inst || !sub || typeof sub !== 'object') return;

@@ -32,7 +32,8 @@ const ClasyncMain = {
     try {
       if (typeof config === 'function') config = config();
       if (typeof config.then === 'function') config = await config;
-      const me = this.mainInstance = await new this(config);
+      const me = await new this(config);
+      this.setMainInstance(me);
       const inst = me[this.instance];
 
       for (const signal of this.exitSignals) {
