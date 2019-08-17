@@ -98,7 +98,7 @@ class MqMongo extends Clasync {
     if (opts.at) {
       $set.date = new Date(opts.at);
     } else if (opts.in) {
-      $set.date = new Date(+await this.syncTime() + (opts.in | 0));
+      $set.date = new Date(+await this.syncTime() + (parseInt(opts.in) || 0));
     } else {
       $currentDate.date = true;
     }
@@ -109,7 +109,7 @@ class MqMongo extends Clasync {
       {upsert: true, new: true, select: {queue: 1, date: 1, nRequeues: 1}}
     ).lean().exec();
 
-    const ttl = (opts.ttl | 0) || (opts.temp && this.visibilityMsec);
+    const ttl = parseInt(opts.ttl) || (opts.temp && this.visibilityMsec);
 
     if (ttl) {
       $set = {expires: new Date(+item.date + ttl)};

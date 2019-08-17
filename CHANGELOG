@@ -102,7 +102,7 @@ Functional (static/func.js):
 Workers and Threads (worker/*; thread/*):
 - Add own classes for `'cluster'` (`$.Worker`) and `'worker_threads'` (`$.Thread`).
 
-*** Version 0.6.2 - 2019-08-17
+*** Version 0.6.3 - 2019-08-17
 
 MQ Mongo-based (mq/mongo/):
 - Add `queue:sleep` pubsub event when queue runs out of active tasks;
