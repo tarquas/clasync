@@ -253,7 +253,7 @@ class MqMongo extends Clasync {
     }
   }
 
-  worker(queue, onData) {
+  worker(queue, onData, opts = {}) {
     const workerId = this.workerIdNext++;
 
     const object = {
@@ -391,7 +391,7 @@ class MqMongo extends Clasync {
           try {
             const decoded = item.message;
 
-            if (item.important) {
+            if (item.important || opts.important) {
               object.waitImportant = new Promise((resolve) => { object.resolveImportant = resolve; });
             }
 
@@ -468,11 +468,11 @@ class MqMongo extends Clasync {
     return msg;
   }
 
-  rpcworker(queue, onData) {
+  rpcworker(queue, onData, opts = {}) {
     const workerId = this.worker(queue, async (msg) => {
       const result = await onData.call(this, msg.args);
       await this.pub(msg.rpcId, result);
-    });
+    }, opts);
 
     return workerId;
   }

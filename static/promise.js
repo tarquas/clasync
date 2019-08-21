@@ -20,13 +20,13 @@ const ClasyncPromise = {
     await new Promise((resolve, reject) => setTimeout(reject, msec, err || 'timeout'));
   },
 
-  all(...promises) {
-    const promise = this.wrapNamed(this.flatten(promises), arr => Promise.all(arr));
+  all(promises) {
+    const promise = this.wrapNamed(promises, arr => Promise.all(arr));
     return promise;
   },
 
-  race(...promises) {
-    const promise = this.wrapNamed(this.flatten(promises), arr => this.raceArray(arr), true);
+  race(promises) {
+    const promise = this.wrapNamed(promises, arr => this.raceArray(arr), true);
     return promise;
   },
 

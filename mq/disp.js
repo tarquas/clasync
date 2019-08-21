@@ -37,7 +37,7 @@ class MqDisp extends Clasync {
   }
 
   async addHandler(action, customHandler) {
-    const [ents, subs, socket, queue] = action.match(this.$.rxSocketQueue) || [];
+    const [ents, impt, subs, socket, queue] = action.match(this.$.rxSocketQueue) || [];
     if (!ents) return;
     const handler = customHandler || this[action];
     const func = this.mq[socket.toLowerCase()];
@@ -49,7 +49,10 @@ class MqDisp extends Clasync {
     const n = subs || 1;
 
     for (let i = 0; i < n; i++) {
-      const handlerId = await func.call(this.mq, fullName, handler.bind(this));
+      const handlerId = await func.call(this.mq, fullName, handler.bind(this), {
+        important: !!impt
+      });
+
       ac.push(handlerId);
     }
   }
@@ -89,6 +92,6 @@ class MqDisp extends Clasync {
   }
 }
 
-MqDisp.rxSocketQueue = /^(?:(\d+)\s*\*\s*)?(\w+)\s+(\S+)$/;
+MqDisp.rxSocketQueue = /^(!)?(?:(\d+)\s*\*\s*)?(\w+)\s+(\S+)$/;
 
 module.exports = MqDisp;

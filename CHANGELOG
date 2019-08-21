@@ -127,3 +127,14 @@ Main module / error logging (index.js; static/error.js):
 
 Functional (static/func.js):
 - `$.all()` and `$.race()` now accept promises in multiple arguments (gets flattened).
+
+*** Version 0.6.4 - 2019-08-21
+
+MQ Mongo-based (mq/mongo/):
+- Add options to `.worker()` and `.rpcworker()`.
+
+MQ Dispatcher (mq/disp.js):
+- Add `!` prefix for worker's `important` override option.
+
+Functional (static/func.js):
+- `$.all()` and `$.race()` no more accept flattened, only arrays (revert v.0.6.3).
