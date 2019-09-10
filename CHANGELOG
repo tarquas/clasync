@@ -138,3 +138,8 @@ MQ Dispatcher (mq/disp.js):
 
 Functional (static/func.js):
 - `$.all()` and `$.race()` no more accept flattened, only arrays (revert v.0.6.3).
+
+*** Version 0.7.0 - 2019-09-11
+
+Main module (index.js; static/main.js):
+- Get rid of instance substitution in constructor by Promise. Introduce `this.$.ready` symbol.

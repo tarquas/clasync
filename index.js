@@ -27,8 +27,8 @@ class Clasync extends ClasyncBase {
 
     await Promise.all(Object.entries(sub).map(async ([k, v]) => {
       if (!(v instanceof Array) || !Object.isPrototypeOf.call(Clasync, v[0])) {
-        this[k] = v;
-        this[k] = await v;
+        this[k] = v[Clasync.ready];
+        this[k] = await v[Clasync.ready];
         return;
       }
 
@@ -37,12 +37,12 @@ class Clasync extends ClasyncBase {
       const parent = type ? {[type]: this} : {};
       const subConfig = {...parent, ...config};
       this[k] = new Class(subConfig, inst.$$);
-      this[k] = await this[k];
+      this[k] = await this[k][Clasync.ready];
     }));
   }
 
   static async isFinal(t) {
-    const inst = this.get(await t, Clasync.instance);
+    const inst = this.get(await t[Clasync.ready], Clasync.instance);
     return inst.final;
   }
 
@@ -95,8 +95,15 @@ class Clasync extends ClasyncBase {
 }
 
 function ClasyncBase(config, $$) {
-  const promise = ClasyncCtor(Object.assign(this, config), $$);
-  return promise;
+  Object.defineProperty(
+    this,
+    Clasync.ready,
+
+    {
+      writable: false,
+      value: ClasyncCtor(Object.assign(this, config), $$)
+    }
+  );
 }
 
 async function ClasyncCtor(t, $$) {
@@ -156,6 +163,7 @@ Object.assign(Clasync, ClasyncMain);
 Object.assign(Clasync, ClasyncFunc);
 
 Clasync.instance = Symbol('Clasync.instance');
+Clasync.ready = Symbol('Clasync.ready');
 Clasync.nextId = 1;
 Clasync.debugMode = process.env.DEBUG;
 Clasync.debugTopics = (Clasync.debugMode || '').toString().match(Clasync.rxNestIds) || [];
