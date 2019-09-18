@@ -28,7 +28,7 @@ class Clasync extends ClasyncBase {
     await Promise.all(Object.entries(sub).map(async ([k, v]) => {
       if (!(v instanceof Array) || !Object.isPrototypeOf.call(Clasync, v[0])) {
         this[k] = v[Clasync.ready];
-        this[k] = await v[Clasync.ready];
+        await v[Clasync.ready];
         return;
       }
 
@@ -36,8 +36,8 @@ class Clasync extends ClasyncBase {
       const type = this.$.type;
       const parent = type ? {[type]: this} : {};
       const subConfig = {...parent, ...config};
-      this[k] = new Class(subConfig, inst.$$);
-      this[k] = await this[k][Clasync.ready];
+      const newInst = this[k] = new Class(subConfig, inst.$$);
+      await newInst[Clasync.ready];
     }));
   }
 

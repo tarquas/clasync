@@ -681,7 +681,7 @@ class MqMongo extends Clasync {
     this.prolongMsec = this.accuracyMsec / this.$.prolongFraction;
     this.lagLatencySec = this.nowSyncMsec / this.$.lagLatencyFraction / 1000;
 
-    this.dbMongo = await new DbMongo(this.db);
+    this.dbMongo = await new DbMongo(this.db)[Clasync.ready];
     this.dbMongo[this.$.instance].detached = true;
 
     this.capDbMongo = await util.promisify(MongoClient.connect).call(

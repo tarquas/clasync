@@ -65,6 +65,7 @@ class DbMongo extends Clasync {
       // useMongoClient: true,
       useCreateIndex: true,
       useFindAndModify: false,
+      useUnifiedTopology: true,
       ...this.$.hardOptions
     });
 
