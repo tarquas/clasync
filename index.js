@@ -27,7 +27,7 @@ class Clasync extends ClasyncBase {
 
     await Promise.all(Object.entries(sub).map(async ([k, v]) => {
       if (!(v instanceof Array) || !Object.isPrototypeOf.call(Clasync, v[0])) {
-        this[k] = v[Clasync.ready];
+        this[k] = v;
         await v[Clasync.ready];
         return;
       }
