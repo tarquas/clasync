@@ -3,6 +3,7 @@ const DbMongo = require('../../db/mongo');
 const DbMongoModel = require('../../db/mongo/model');
 const util = require('util');
 const mongodb = require('mongodb');
+const redis = require('redis');
 
 const MongoClient = mongodb.MongoClient;
 
@@ -31,6 +32,7 @@ class MqMongoModel extends DbMongoModel {
 class MqMongo extends Clasync {
   // db - config to create DbMongo instance to use for queues
   // capDb - config to create DbMongo instance to use for events
+  // redis - alternatively use redis for pubsub
 
   static get type() { return 'mq'; }
 
@@ -42,6 +44,12 @@ class MqMongo extends Clasync {
 
   async pub(event, payload) {
     if (this.finishing) return null;
+
+    if (this.redisPub) {
+      this.redisPub.publish(event, JSON.stringify(payload));
+      return {event, message: payload};
+    }
+
     if (this.waitPubsubReady) await this.waitPubsubReady;
 
     const inserted = await util.promisify(this.pubsubColl.insertOne).call(
@@ -56,15 +64,17 @@ class MqMongo extends Clasync {
   sub(event, onData) {
     if (this.finishing) return null;
     const workerId = this.workerIdNext++;
+    const object = {sub: event};
 
     let subHandlers = this.subs[event];
-    if (!subHandlers) this.subs[event] = subHandlers = this.$.makeObject();
 
-    const object = {
-      sub: event
-    };
+    if (!subHandlers) {
+      if (this.redisSub) this.redisSub.subscribe(event);
+      this.subs[event] = subHandlers = this.$.makeObject();
+    }
 
     subHandlers[workerId] = onData;
+
     this.workers[workerId] = object;
     return workerId;
   }
@@ -233,12 +243,11 @@ class MqMongo extends Clasync {
     while (true) {
       const start = process.uptime();
 
-      const item = await util.promisify(this.pubsubColl.findOneAndUpdate).call(
-        this.pubsubColl,
+      const item = await this.model.findOneAndUpdate(
         {_id: this.$.nullObjectId},
-        {$currentDate: {curDate: true}},
-        {upsert: true, returnOriginal: false}
-      );
+        {$currentDate: {curDate: true}, $setOnInsert: {_id: this.$.nullObjectId}},
+        {upsert: true, new: true}
+      ).lean().exec();
 
       const diff = process.uptime() - start;
 
@@ -248,7 +257,7 @@ class MqMongo extends Clasync {
         throw new Error('MQ PubSub Sync: network latency is too big. Worker disabled');
       }
 
-      const curDate = this.$.get(item, 'value', 'curDate');
+      const curDate = item.curDate;
       return curDate;
     }
   }
@@ -513,6 +522,7 @@ class MqMongo extends Clasync {
 
         if (object.sub) {
           delete this.subs[object.sub];
+          if (this.redisSub) this.redisSub.unsubscribe(object.sub);
           object.sub = null;
         }
       }
@@ -532,6 +542,51 @@ class MqMongo extends Clasync {
 
   async deleteIfSafe() {
     // STUB: if safe it's like autodeleted by arch
+  }
+
+  async dispatchMessage(event, message) {
+    const subHandlers = this.subs[event];
+
+    if (subHandlers) {
+      for (const workerId in subHandlers) {
+        const worker = this.workers[workerId];
+        if (!worker) continue;
+
+        try {
+          let wait = this.subWait[event];
+          if (wait) await wait.promise;
+          if (this.finishing) return delete this.subWait[event];
+          let process = subHandlers[workerId].call(this, message);
+
+          if (process instanceof Promise) {
+            this.subWait[event] = wait = {};
+            worker.subwait = wait;
+            wait.promise = new Promise((resolve) => { wait.resolve = resolve; });
+            process = await process;
+            worker.subwait = null;
+            wait.resolve();
+          }
+
+          delete this.subWait[event];
+          if (process === false) break;
+        } catch (err) {
+          if (!(await this.error(err, {
+            id: event,
+            msg: message,
+            type: 'SUB'
+          }))) break;
+        }
+      }
+    }
+
+    return true;
+  }
+
+  redisMessage(event, message) {
+    this.dispatchMessage(event, JSON.parse(message))
+    .catch((err) => {
+      this.$.throw(err, 'MQ Redis PubSub Handler Fail');
+    });
   }
 
   async pubsubLoop() { // eslint-disable-line
@@ -613,46 +668,10 @@ class MqMongo extends Clasync {
 
             const {event, message} = this.latest;
 
-            (async () => { // eslint-disable-line
-              const subHandlers = this.subs[event];
-
-              if (subHandlers) {
-                for (const workerId in subHandlers) {
-                  const worker = this.workers[workerId];
-                  if (!worker) continue;
-
-                  try {
-                    let wait = this.subWait[event];
-                    if (wait) await wait.promise;
-                    if (this.finishing) return delete this.subWait[event];
-                    let process = subHandlers[workerId].call(this, message);
-
-                    if (process instanceof Promise) {
-                      this.subWait[event] = wait = {};
-                      worker.subwait = wait;
-                      wait.promise = new Promise((resolve) => { wait.resolve = resolve; });
-                      process = await process;
-                      worker.subwait = null;
-                      wait.resolve();
-                    }
-
-                    delete this.subWait[event];
-                    if (process === false) break;
-                  } catch (err) {
-                    if (!(await this.error(err, {
-                      id: event,
-                      msg: message,
-                      type: 'SUB'
-                    }))) break;
-                  }
-                }
-              }
-
-              return true;
-            })()
-              .catch((err) => {
-                this.$.throw(err, 'MQ PubSub Handler Fail');
-              });
+            this.dispatchMessage(event, message)
+            .catch((err) => {
+              this.$.throw(err, 'MQ PubSub Handler Fail');
+            });
           }
         } finally {
           cursor.close();
@@ -684,16 +703,21 @@ class MqMongo extends Clasync {
     this.dbMongo = await new DbMongo(this.db)[Clasync.ready];
     this.dbMongo[this.$.instance].detached = true;
 
-    this.capDbMongo = await util.promisify(MongoClient.connect).call(
-      MongoClient,
-      this.capDb ? this.capDb.connString : this.db.connString,
+    if (this.redis) {
+      this.redisPub = redis.createClient(this.redis.connStr);
+      this.redisSub = redis.createClient(this.redis.connStr);
+    } else {
+      this.capDbMongo = await util.promisify(MongoClient.connect).call(
+        MongoClient,
+        this.capDb ? this.capDb.connString : this.db.connString,
 
-      {
-        useUnifiedTopology: true,
-        ...DbMongo.hardOptions,
-        forceServerObjectId: true
-      }
-    );
+        {
+          useUnifiedTopology: true,
+          ...DbMongo.hardOptions,
+          forceServerObjectId: true
+        }
+      );
+    }
 
     await sub({mqModel: MqMongoModel.sub({db: this.dbMongo})});
     this.Model = this.model = this.mqModel.model;
@@ -711,19 +735,24 @@ class MqMongo extends Clasync {
     this.workerProlongVisibilityBound = this.workerProlongVisibility.bind(this);
     await this.sub(this.queuePfx + this.newTaskEvent, this.takeFreeWorker);
 
-    this.waitPubsubReady = new Promise((resolve) => {
-      this.pubsubReady = resolve;
-    });
+    if (this.redisSub) {
+      this.redisMessageBound = this.redisMessage.bind(this);
+      this.redisSub.on('message', this.redisMessageBound);
+    } else {
+      this.waitPubsubReady = new Promise((resolve) => {
+        this.pubsubReady = resolve;
+      });
 
-    this.waitPubsubCollReady = new Promise((resolve) => {
-      this.pubsubCollReady = resolve;
-    });
+      this.waitPubsubCollReady = new Promise((resolve) => {
+        this.pubsubCollReady = resolve;
+      });
 
-    this.pubsubLoop().catch((err) => {
-      this.$.throw(err, `MQ PubSub Loop Fatal (code=${err.code || 'none'})`);
-    });
+      this.pubsubLoop().catch((err) => {
+        this.$.throw(err, `MQ PubSub Loop Fatal (code=${err.code || 'none'})`);
+      });
 
-    await this.waitPubsubReady;
+      await this.waitPubsubReady;
+    }
   }
 
   async final(reason) {
@@ -756,7 +785,14 @@ class MqMongo extends Clasync {
     this.workerProlongVisibilityBound = null;
 
     await this.$.finish(this.dbMongo, reason);
-    this.capDbMongo.close();
+
+    if (this.redisSub) {
+      this.redisSub.removeListener('message', this.redisMessageBound);
+      this.redisPub.quit();
+      this.redisSub.quit();
+    } else {
+      this.capDbMongo.close();
+    }
   }
 }
 

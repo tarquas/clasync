@@ -159,7 +159,7 @@ class ThreadPool extends ClasyncEmitter {
     const id = ++this.$.lastRpcId;
     const post = {event: 'rpc', id, method, data};
 
-    const {result, error} = await this.$.waitWorkerEvent.call(
+    const {result, error} = await this.$.waitWorkerEvent.call(this,
       worker,
       `rpc_${id}`,
       timeout,
