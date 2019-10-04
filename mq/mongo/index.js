@@ -704,8 +704,8 @@ class MqMongo extends Clasync {
     this.dbMongo[this.$.instance].detached = true;
 
     if (this.redis) {
-      this.redisPub = redis.createClient(this.redis.connStr);
-      this.redisSub = redis.createClient(this.redis.connStr);
+      this.redisPub = redis.createClient(this.redis.connString);
+      this.redisSub = redis.createClient(this.redis.connString);
     } else {
       this.capDbMongo = await util.promisify(MongoClient.connect).call(
         MongoClient,
