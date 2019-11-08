@@ -10,6 +10,8 @@ const ClasyncEmitter = require('../emitter');
 class Thread extends ClasyncEmitter {
   static get Pool() { return require('./pool'); }
 
+  static get type() { return 'thread'; }
+
   async init() {
     if (!threads) throw new Error('worker_threads module is not supported. please use Node > 11.10 to start this app');
     if (isMainThread) throw new Error('Referencing Thread class from main thread is not allowed');
@@ -50,6 +52,22 @@ class Thread extends ClasyncEmitter {
     }
   }
 
+  async rpc(method, ...data) {
+    const id = ++this.$.lastRpcId;
+    const post = {event: 'rpc', id, method, data};
+
+    const {result, error} = await this.$.Pool.waitWorkerEvent.call(this.$,
+      parentPort,
+      `rpc_${id}`,
+      this.timeout,
+      this.timeoutErr,
+      post
+    );
+
+    if (error) throw error;
+    return result;
+  }
+
   static log(...args) {
     parentPort.postMessage({event: 'log', type: 'log', args});
   }
@@ -65,8 +83,12 @@ class Thread extends ClasyncEmitter {
   static logDebug(...args) {
     parentPort.postMessage({event: 'log', type: 'logDebug', args});
   }
+
+  static async configure() { return {}; }
 }
 
 Thread.threadInst = null;
+Thread.waitTimeout = 5000;
+Thread.lastRpcId = 0;
 
 module.exports = Thread;

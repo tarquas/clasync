@@ -272,6 +272,20 @@ ClasyncFunc = {
     return result;
   },
 
+  interface(Class) {
+    const {name, length, prototype, ...statics} = Object.assign({},
+      ...Object.getOwnPropertyNames(Class).map(name => ({[name]: Class[name]}))
+    );
+
+    const {constructor, ...methods} = Object.assign({},
+      ...Object.getOwnPropertyNames(Class.prototype)
+      .map(name => ({[name]: Class.prototype[name]}))
+    );
+
+    Object.assign(this, statics);
+    Object.assign(this.prototype, methods);
+  },
+
   pick(from, ...what) {
     const keys = ClasyncFunc.uniqKeys(what);
 

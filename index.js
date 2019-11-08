@@ -46,14 +46,25 @@ class Clasync extends ClasyncBase {
     return inst.final;
   }
 
-  static async finish(t, reason) {
+  static async finish(t, reasonOrig) {
     const inst = this.get(t, Clasync.instance);
     if (!inst || inst.final) return;
+
+    let reason = reasonOrig;
 
     inst.final = true;
     inst.setFinal(reason);
 
     if (!inst.inited) await inst.waitInited;
+
+    for (let p, o = t; o.beforeFinal; p = o.beforeFinal, o = Object.getPrototypeOf(o)) {
+      if (o.beforeFinal !== p) try {
+        const newReason = await o.beforeFinal.call(t, reason);
+        if (newReason != null) reason = newReason;
+      } catch (err) {
+        this.throw(err, 'FINALIZER ERROR');
+      }
+    }
 
     const from = t;
 
@@ -64,14 +75,6 @@ class Clasync extends ClasyncBase {
       await this.finish(sub, reason);
       delete from[key];
     }));
-
-    for (let p, o = t; o.beforeFinal; p = o.beforeFinal, o = Object.getPrototypeOf(o)) {
-      if (o.beforeFinal !== p) try {
-        await o.beforeFinal.call(t, reason);
-      } catch (err) {
-        this.throw(err, 'FINALIZER ERROR');
-      }
-    }
 
     for (let p, o = t; o.final; p = o.final, o = Object.getPrototypeOf(o)) {
       if (o.final !== p) try {
@@ -169,11 +172,11 @@ Clasync.debugMode = process.env.DEBUG;
 Clasync.debugTopics = (Clasync.debugMode || '').toString().match(Clasync.rxNestIds) || [];
 Clasync.debugIndex = Clasync.invert(Clasync.debugTopics);
 
-Clasync.App = class App extends Clasync {
+module.exports = Clasync;
+
+Clasync.App = class App extends Clasync.Emitter {
   static get type() { return 'app'; }
   static configure() { return {}; }
 };
-
-module.exports = Clasync;
 
 Clasync.autorun(require.main).catch(err => Clasync.logFatal(err));

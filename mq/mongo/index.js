@@ -251,7 +251,7 @@ class MqMongo extends Clasync {
 
       const diff = process.uptime() - start;
 
-      if (diff >= this.$.lagLatencySec) {
+      if (diff >= this.lagLatencySec) {
         await this.$.delay(this.$.pubsubRetryMsec); // wait before next check to avoid flood
         if (--retries) continue;
         throw new Error('MQ PubSub Sync: network latency is too big. Worker disabled');
@@ -292,17 +292,22 @@ class MqMongo extends Clasync {
           const now = +new Date() + object.sync;
           const start = process.uptime();
 
-          const currentTopics = (await this.model.distinct('topic', {
+          const itemQuery = {
             queue,
-            date: {$gte: new Date(now + this.accuracyMsec)}
-          })).filter(this.$.echo);
+            date: {$lt: new Date(now + this.accuracyMsec)}
+          };
+
+          if (!opts.noTopic) {
+            const currentTopics = (await this.model.distinct('topic', {
+              queue,
+              date: {$gte: new Date(now + this.accuracyMsec)}
+            })).filter(this.$.echo);
+
+            itemQuery.topic = {$nin: currentTopics};
+          }
 
           const item = await this.model.findOneAndUpdate(
-            {
-              queue,
-              date: {$lt: new Date(now + this.accuracyMsec)},
-              topic: {$nin: currentTopics}
-            },
+            itemQuery,
 
             {
               $currentDate: {curDate: true},
@@ -315,14 +320,20 @@ class MqMongo extends Clasync {
           const diff = process.uptime() - start;
 
           if (!item) {
-            const curDate = await this.syncTime();
-            if (diff < this.$.lagLatencySec) object.sync = curDate - new Date();
+            let curDate = object.sync + new Date();
+
+            /*if (diff < this.lagLatencySec) {
+              curDate = await this.syncTime();
+              object.sync = curDate - new Date();
+            } else {
+              
+            }*/
 
             this.setFreeWorker(workerId);
 
             let delay = this.visibilityMsec;
 
-            const nextItems = await this.model.find({
+            /*const nextItems = await this.model.find({
               queue,
               date: {$gt: curDate}
             }).sort({queue: 1, priority: 1, date: 1}).limit(1).lean().exec();
@@ -331,7 +342,7 @@ class MqMongo extends Clasync {
               const next = nextItems[0];
               const nextDelay = next.date - curDate;
               if (nextDelay < delay) delay = nextDelay;
-            }
+            }*/
 
             this.pub(`${this.queuePfx}${this.sleepEvent}`, {queue, delay});
             this.pub(`${this.queuePfx}${this.sleepEvent}:${queue}`, {queue, delay});
@@ -348,9 +359,9 @@ class MqMongo extends Clasync {
             continue;
           }
 
-          if (diff < this.$.lagLatencySec) object.sync = item.curDate - new Date();
+          if (diff < this.lagLatencySec) object.sync = item.curDate - new Date();
 
-          if (item.topic) {
+          if (!opts.noTopic && item.topic) {
             const raceProj = {_id: 1};
             if (this.debugRace) raceProj.message = 1;
 
@@ -697,6 +708,7 @@ class MqMongo extends Clasync {
 
     if (!this.visibilityMsec) this.visibilityMsec = this.$.visibilityMsec;
     this.accuracyMsec = this.visibilityMsec / this.$.accuracyFraction;
+    this.nowSyncMsec = this.accuracyMsec / 2;
     this.prolongMsec = this.accuracyMsec / this.$.prolongFraction;
     this.lagLatencySec = this.nowSyncMsec / this.$.lagLatencyFraction / 1000;
 

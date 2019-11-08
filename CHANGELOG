@@ -146,3 +146,30 @@ Main module (index.js; static/main.js):
 
 MQ Mongo-based (mq/mongo/):
 - Add alternative pubsub redis support.
+
+*** Version 0.7.6 - 2019-11-08
+
+Main module (index.js):
+- Bugfix: `.beforeFinal()` runs before deps finalization and allows to change finaling reason;
+- Class `App` is now extended from `Clasync.Emitter`.
+
+Functional (static/func.js):
+- Add `.interface()` method, allowing to add fields and methods from another class.
+
+Workers and Threads (worker/*; thread/*):
+- Add feedback `.rpc()` from worker to pool;
+- Added class types;
+- Default empty object `$.configure`.
+
+MQ Mongo-based (mq/mongo/):
+- Various bugfixes;
+- Disable idle queue `.syncTime()`;
+- Disable delayed messages support;
+- Add ability to disable `topic` support to `.worker()`: `noTopic` boolean.
+
+MQ Dispatcher (mq/disp.js):
+- Add option flag `?` for `noTopic`.
+
+Web (web/index.js; web/api.js):
+- Moved automatic `.ready()` to `.afterInit()`;
+- Customizable Web API headers and options: `allowedHeaders`, `exposedHeaders`, `origin`, `compression`, `trustProxy`.

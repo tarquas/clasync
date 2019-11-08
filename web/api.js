@@ -14,12 +14,19 @@ const defaultErrors = {
 
 class WebApi extends Web {
   async init() {
+    if (this.trustProxy === true) {
+      this.app.enable('trust proxy');
+    } else if (this.trustProxy) {
+      this.app.set('trust proxy', this.trustProxy);      
+    }
+
     this.use(cors({
-      allowedHeaders: ['Content-Type', 'Authorization'],
-      exposedHeaders: ['Content-Type', 'Date']
+      allowedHeaders: this.allowedHeaders || ['Content-Type', 'Authorization'],
+      exposedHeaders: this.exposedHeaders || ['Content-Type', 'Date'],
+      origin: this.origin
     }));
 
-    this.use(compression({level: 9}));
+    if (this.compression) this.use(compression({level: this.compression}));
   }
 
   static get errors() {

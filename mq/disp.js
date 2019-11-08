@@ -6,9 +6,9 @@ class MqDisp extends Clasync {
 
   static get type() { return 'mqDisp'; }
 
-  async pub(event, data) {
+  async pub(event, data, opts) {
     const fullName = `${this._prefix}${event}`;
-    return await this.mq.pub(fullName, data);
+    return await this.mq.pub(fullName, data, opts);
   }
 
   async push(queue, data, opts) {
@@ -21,23 +21,23 @@ class MqDisp extends Clasync {
     return await this.mq.rpc(fullName, data, opts);
   }
 
-  sub(event, onData) {
+  sub(event, onData, opts) {
     const fullName = `${this._prefix}${event}`;
-    return this.mq.sub(fullName, onData);
+    return this.mq.sub(fullName, onData, opts);
   }
 
-  worker(queue, onData) {
+  worker(queue, onData, opts) {
     const fullName = `${this._prefix}${queue}`;
-    return this.mq.worker(fullName, onData);
+    return this.mq.worker(fullName, onData, opts);
   }
 
-  rpcworker(queue, onData) {
+  rpcworker(queue, onData, opts) {
     const fullName = `${this._prefix}${queue}`;
-    return this.mq.rpcworker(fullName, onData);
+    return this.mq.rpcworker(fullName, onData, opts);
   }
 
   async addHandler(action, customHandler) {
-    const [ents, impt, subs, socket, queue] = action.match(this.$.rxSocketQueue) || [];
+    const [ents, optsStr, subs, socket, queue] = action.match(this.$.rxSocketQueue) || [];
     if (!ents) return;
     const handler = customHandler || this[action];
     const func = this.mq[socket.toLowerCase()];
@@ -48,9 +48,12 @@ class MqDisp extends Clasync {
     if (!ac) this.handlers[action] = ac = [];
     const n = subs || 1;
 
+    const opts = this.$.invert(optsStr.split(''));
+
     for (let i = 0; i < n; i++) {
       const handlerId = await func.call(this.mq, fullName, handler.bind(this), {
-        important: !!impt
+        important: '!' in opts,
+        noTopic: '?' in opts
       });
 
       ac.push(handlerId);
@@ -92,6 +95,6 @@ class MqDisp extends Clasync {
   }
 }
 
-MqDisp.rxSocketQueue = /^(!)?(?:(\d+)\s*\*\s*)?(\w+)\s+(\S+)$/;
+MqDisp.rxSocketQueue = /^([!\$]*)\s*(?:(\d+)\s*\*\s*)?(\w+)\s+(\S+)$/;
 
 module.exports = MqDisp;

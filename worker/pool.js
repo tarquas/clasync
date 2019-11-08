@@ -4,6 +4,8 @@ const ClasyncEmitter = require('../emitter');
 class WorkerPool extends ClasyncEmitter {
   // filename, min, max, opt, timeout, timeoutErr
 
+  static get type() { return 'workerPool'; }
+
   async init() {
     this.nextWorkerId = 0;
     this.workers = this.$.makeObject();
@@ -59,7 +61,14 @@ class WorkerPool extends ClasyncEmitter {
     this.removeWorker(id, true);
   }
 
-  workerMessage(id, {event, type, args}) {
+  async workerMessage(workerId, {event, type, args, method, id, data}) {
+    if (event === 'rpc') {
+      const result = await this.emit(method, workerId, ...data);
+      const worker = this.workers[workerId];
+      if (worker) worker.send({event: `rpc_${id}`, result});
+      return;
+    }
+
     if (event !== 'log') return;
 
     switch (type) {

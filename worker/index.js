@@ -6,6 +6,8 @@ const ClasyncEmitter = require('../emitter');
 class Worker extends ClasyncEmitter {
   static get Pool() { return require('./pool'); }
 
+  static get type() { return 'worker'; }
+
   async init() {
     if (isMaster) throw new Error('Referencing Worker class from master process is not allowed');
     if (this.$.workerInst) throw new Error('Only 1 instance of Worker class is allowed per worker');
@@ -45,6 +47,22 @@ class Worker extends ClasyncEmitter {
     }
   }
 
+  async rpc(method, ...data) {
+    const id = ++this.$.lastRpcId;
+    const post = {event: 'rpc', id, method, data};
+
+    const {result, error} = await this.$.Pool.waitWorkerEvent.call(this.$,
+      process,
+      `rpc_${id}`,
+      this.timeout,
+      this.timeoutErr,
+      post
+    );
+
+    if (error) throw error;
+    return result;
+  }
+
   static log(...args) {
     process.send({event: 'log', type: 'log', args});
   }
@@ -60,8 +78,12 @@ class Worker extends ClasyncEmitter {
   static logDebug(...args) {
     process.send({event: 'log', type: 'logDebug', args});
   }
+
+  static async configure() { return {}; }
 }
 
 Worker.workerInst = null;
+Worker.waitTimeout = 5000;
+Worker.lastRpcId = 0;
 
 module.exports = Worker;

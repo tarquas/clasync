@@ -84,6 +84,9 @@ class Web extends Clasync {
     this._prefix = this.prefix || '';
     this.bind = this.httpBind || this.httpsBind;
     this.createServers();
+  }
+
+  async afterInit() {
     if (!this.confirmReady) await this.ready();
   }
 
