@@ -1,26 +1,13 @@
 const Clasync = require('..');
 
-class WebRest extends Clasync {
+class WebRest extends Clasync.Emitter {
   // web -- webserver (class Web) instance
   // prefix -- REST group prefix
 
   static get type() { return 'rest'; }
 
   async express(middleware, req) {
-    const result = await new Promise((resolve, reject) => {
-      try {
-        middleware.call(
-          this,
-          req,
-          req.res,
-          data => (data instanceof Error ? reject(data) : resolve(data))
-        );
-      } catch (err) {
-        reject(err);
-      }
-    });
-
-    return result;
+    return this.web.express(middleware, req);
   }
 
   async callHandler(handler, req, context) {
@@ -38,16 +25,18 @@ class WebRest extends Clasync {
 
   async processMiddlewares(names, req) { // eslint-disable-line
     for (const name of names) {
-      const fields = name.split('.');
+      const [, mwName, mwArg] = name.match(this.$.rxMiddlewareCall);
+      const fields = mwName.split('.');
       let p = this.web;
       let context = null;
 
       for (const field of fields) {
-        p = p ? p[field] : this;
-        if (!context) context = p;
+        context = p;
+        p = field ? p[field] : this;
         if (!p) throw new Error(`Property ${field} not found in ${name} middleware`);
       }
 
+      req.mwArg = mwArg;
       await this.callHandler(p, req, context); // eslint-disable-line
     }
   }
@@ -102,6 +91,7 @@ class WebRest extends Clasync {
 
 WebRest.rxMethodPath = /^(\w+)\s+(\S+)((\s*>\s*[^\s>]+)*)$/;
 WebRest.rxMiddleware = /[^\s>]+/g;
+WebRest.rxMiddlewareCall = /^([^\s>\(]+)(?:\(([^\)]*)\))?$/;
 WebRest.rxFollow = /[^.]+/g;
 
 module.exports = WebRest;

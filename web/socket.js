@@ -3,7 +3,7 @@ const socketIo = require('socket.io');
 const amqpAdapter = require('./socket-mq');
 const util = require('util');
 
-class WebSocket extends Clasync {
+class WebSocket extends Clasync.Emitter {
   // prefix -- path to endpoint
   // mq -- optional Mq instance to dispatch within a cluster
 

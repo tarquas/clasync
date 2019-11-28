@@ -1,6 +1,6 @@
 const Clasync = require('../..');
 
-class DbMongoModel extends Clasync {
+class DbMongoModel extends Clasync.Emitter {
   // db -- database (class DbMongo) connection
 
   static get type() { return 'dbModel'; }

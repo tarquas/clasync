@@ -36,7 +36,7 @@ class WebApi extends Web {
   }
 
   async response(data, req) {
-    req.res.end(JSON.stringify(data, null, 2));
+    req.res.end(`${JSON.stringify(data, null, 2)}\n`);
   }
 
   async internalError(err, req) {
@@ -53,12 +53,8 @@ class WebApi extends Web {
   }
 
   async customError(err, req) {
-    req.res.status(500);
-
-    this.response({
-      error: 'custom',
-      content: err
-    }, req);
+    if (req.res.statusCode === 200) req.res.status(500);
+    this.response(err, req);
   }
 
   async restError(err, req) {
@@ -84,6 +80,19 @@ class WebApi extends Web {
     if (err instanceof Error) return this.internalError(err, req);
     if (err.constructor === String) return this.restError(err, req);
     return this.customError(err, req);
+  }
+
+  async json(req) {
+    try {
+      await super.json(req);
+    } catch (err) {
+      if (err.type === 'entity.too.large') {
+        req.res.status(413);
+        throw {error: 'limitExceeded', size: +req.headers['content-length'], limit: req.mwArg};
+      }
+
+      throw err;
+    }
   }
 }
 

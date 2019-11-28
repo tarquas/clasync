@@ -173,3 +173,36 @@ MQ Dispatcher (mq/disp.js):
 Web (web/index.js; web/api.js):
 - Moved automatic `.ready()` to `.afterInit()`;
 - Customizable Web API headers and options: `allowedHeaders`, `exposedHeaders`, `origin`, `compression`, `trustProxy`.
+
+*** Version 0.8.0 - 2019-11-28
+
+Overall (db/; mq/; pay/; web/):
+- Extend classes from `Clasync.Emitter` rather than from `Clasync`.
+
+Crypt (crypt.js):
+- Update to use IV-based cipher creation;
+- Support custom boolean flags in token.
+
+MQ Discovery (mq/discovery.js):
+- Prefix redefine in constructor;
+- Poll instances in `.afterInit()` to increase stability;
+- Add events: 'beforeUp', 'up', 'down';
+
+Functional (static/func.js):
+- Add '$.objSort()`, `$make()` synonym of `$.makeObject()`, `$.accumulate()`;
+- Date support in `$.clone()` and `$.cloneDeep()`;
+- Support multiple groups for `$.inverts()` and `$.groupBy()`;
+
+Promise utilities (static/promise.js):
+- Support rest parameters in `$.promisify()`;
+- Add `$.bind()`, `$.bindJob()`, `$.timeThrottle()`;
+
+Web (web/index.js; web/api.js; web/rest.js):
+- Move `.express()` to `Web`, alias it from `Web.Rest`;
+- Add `.json()`, `.form()`, `.file()`, `.files()` middleware to `Web`;
+- Append line break to `Web.Api` JSON response;
+- `Web.Api`: make `.customError` code 500 by default;
+- Return JSON error representation from `Web.Api` for `limitExceeded`;
+- `Web.Rest`: add argument support as `req.mwArg` for middleware declaration in REST method;
+- Support middleware from current `Web.Rest` instance, prepended with `.` in declaration;
+- Deprecate `Web.Upload`.

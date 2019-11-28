@@ -5,8 +5,10 @@ const httpoly = require('httpolyglot');
 const http = require('http');
 const https = require('https');
 const util = require('util');
+const body = require('body-parser');
+const Multer = require('multer');
 
-class Web extends Clasync {
+class Web extends Clasync.Emitter {
   // httpBind : a HTTP port or host:port to listen
   // httpOpts : HTTP connection options
   // httpsBind : a HTTPS port or host:port to listen
@@ -49,6 +51,23 @@ class Web extends Clasync {
     return this.app.use(this._prefix, middleware);
   }
 
+  async express(middleware, req) {
+    const result = await new Promise((resolve, reject) => {
+      try {
+        middleware.call(
+          this,
+          req,
+          req.res,
+          data => (data instanceof Error ? reject(data) : resolve(data))
+        );
+      } catch (err) {
+        reject(err);
+      }
+    });
+
+    return result;
+  }
+
   async listenFind(app, port, find) {
     if (!app) return null;
     let p = port;
@@ -82,6 +101,7 @@ class Web extends Clasync {
 
   async init() {
     this._prefix = this.prefix || '';
+    const multer = Multer({dest: '/tmp', limits: this.limits});
     this.bind = this.httpBind || this.httpsBind;
     this.createServers();
   }
@@ -100,6 +120,26 @@ class Web extends Clasync {
     req.res.end(err.message || JSON.stringify(err, null, 2));
   }
 
+  async json(req) {
+    const result = await this.express(body.json({limit: req.mwArg}), req);
+    return result;
+  }
+
+  async form(req) {
+    const result = await this.express(this.multer.none(), req);
+    return result;
+  }
+
+  async file(req) {
+    const result = await this.express(this.multer.single(req.mwArg), req);
+    return result;
+  }
+
+  async files(req) {
+    const result = await this.express(this.multer.array(req.mwArg), req);
+    return result;
+  }
+
   async final() {
     if (this.primary) {
       if (this.http) this.http.close();
@@ -112,7 +152,7 @@ class Web extends Clasync {
   }
 }
 
-Object.assign(Web, {express, static: express.static, basicAuth});
+Object.assign(Web, {express, static: express.static, basicAuth, Multer, body});
 Web.binds = Web.makeObject();
 
 module.exports = Web;

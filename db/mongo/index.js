@@ -4,7 +4,7 @@ const mongoose = require('mongoose');
 
 // mongoose.Promise = Promise;
 
-class DbMongo extends Clasync {
+class DbMongo extends Clasync.Emitter {
   // connString : MongoDB connection string
   // connOpts [optional] : MongoDB connection options
   // prefix [optional] : prefix to collections

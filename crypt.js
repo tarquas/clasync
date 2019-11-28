@@ -1,8 +1,13 @@
 const crypto = require('crypto');
 
 class Crypt {
-  constructor(password) {
-    this.password = password;
+  constructor(password, nFlags) {
+    if (!password) throw new Error('Password must be specified');
+    const p = password.toString();
+    if (p.length < 16) throw new Error('Password must be at least 16 characters');
+    this.iv = p.substr(0, 8);
+    this.password = p.substr(8);
+    this.nFlags = nFlags;
     this.algorithm = this.constructor.defaultAlgorithm;
   }
 
@@ -18,12 +23,14 @@ class Crypt {
     return result;
   }
 
-  encrypt(text) {
-    const noiseHex = parseInt(Math.random() * 0xffffff, 10).toString(16);
+  encrypt(text, flags) {
+    const noise = parseInt(Math.random() * 0xffffff, 10);
+    const noiseBase = (noise & (-1 << this.nFlags)) | flags;
+    const noiseHex = noiseBase.toString(16);
     const noiseHexA = ('000000').substr(noiseHex.length) + noiseHex;
     const noise64 = Buffer.from(noiseHexA, 'hex').toString('base64');
 
-    const cipher = crypto.createCipher(this.algorithm, this.password);
+    const cipher = crypto.createCipheriv(this.algorithm, this.password, this.iv);
     let crypted = cipher.update(noise64 + text, 'base64', 'base64');
     crypted += cipher.final('base64');
 
@@ -34,18 +41,21 @@ class Crypt {
   decrypt(text) {
     const base64 = this.constructor.fromUrlSafe(text);
 
-    const decipher = crypto.createDecipher(this.algorithm, this.password);
+    const decipher = crypto.createDecipheriv(this.algorithm, this.password, this.iv);
     let dec = decipher.update(base64, 'base64', 'base64');
     dec += decipher.final('base64');
 
+    const noise = parseInt(Buffer.from(dec.substr(0, 4), 'base64').toString('hex'), 16);
+    const flags = noise & ((1 << this.nFlags) - 1)
     const result = dec.substr(4);
-    return result;
+    return {result, flags};
   }
 
-  static parseUserId(userId) {
-    if (!userId) return null;
-    if (userId.length === 24) return Buffer.from(userId, 'hex').toString('base64');
-    if (userId.length === 16) return this.fromUrlSafe(userId);
+  static parseUserId(sUserId) {
+    if (!sUserId) return null;
+    const userId = sUserId.toString();
+    if (userId.length === 24) return Buffer.from(userId, 'hex');
+    if (userId.length === 16) return Buffer.from(userId, 'base64');
     return null;
   }
 
@@ -57,16 +67,24 @@ class Crypt {
 
   getToken(tokenData) {
     const {userId} = tokenData;
-    const userIdA = this.constructor.parseUserId(userId);
+    const ubuf = this.constructor.parseUserId(userId);
 
-    if (!userIdA || userIdA.length !== 16) throw new Error('Token User ID is invalid');
+    if (!ubuf || ubuf.length !== 12) throw new Error('Token User ID is invalid');
 
     const buf = Buffer.alloc(6);
-    buf.writeIntBE(tokenData.expiresAt / 86400000, 0, 3);
-    buf.writeIntLE(tokenData.rev - 0, 3, 3);
+    buf.writeUIntBE(tokenData.expiresAt / 60000, 0, 4);
+    buf.writeUIntLE((tokenData.rev & 0xFFFF), 4, 2);
 
-    const text = userIdA + buf.toString('base64');
-    const result = this.encrypt(text);
+    let checkSum = 0;
+    for (let i = 0; i < 6; i += 3) checkSum ^= buf.readUIntBE(i, 3);
+    for (let i = 0; i < 12; i += 3) checkSum ^= ubuf.readUIntBE(i, 3);
+    const cbuf = Buffer.alloc(3);
+    cbuf.writeUIntBE(checkSum, 0, 3);
+
+    const text = cbuf.toString('base64') + buf.toString('base64') + ubuf.toString('base64');
+
+    const flags = (tokenData.flags && parseInt(tokenData.flags.map(Number).join(''), 2)) | 0;
+    const result = this.encrypt(text, flags);
     return result;
   }
 
@@ -75,25 +93,43 @@ class Crypt {
   // }
 
   checkToken(token, format) {
-    const text = this.decrypt(token);
-    if (text.length !== 24) return null;
-    const result = {};
+    try {
+      if (token.length !== 43) return null;
+      const {result: text, flags} = this.decrypt(token);
+      if (text.length !== 28) return null;
 
-    const buf = Buffer.from(text.substr(16, 8), 'base64');
-    result.expiresAt = new Date(buf.readIntBE(0, 3) * 86400000);
-    if (result.expiresAt < new Date()) return null;
-    result.rev = buf.readIntLE(3, 3);
+      const result = {};
 
-    const userId = text.substr(0, 16);
-    if (format === 'base64') result.userId = userId;
-    else if (format) result.userId = Buffer.from(userId, 'base64').toString(format);
-    else result.userId = this.constructor.toUrlSafe(userId);
+      const buf = Buffer.from(text.substr(0, 12), 'base64');
+      const testCheckSum = buf.readUIntBE(0, 3);
+      result.expiresAt = new Date(buf.readUIntBE(3, 4) * 60000);
+      result.rev = buf.readUIntLE(7, 2);
 
-    return result;
+      const userId = text.substr(12, 16);
+      const ubuf = Buffer.from(userId, 'base64');
+      if (format === 'base64') result.userId = userId;
+      else if (format) result.userId = ubuf.toString(format);
+      else result.userId = this.constructor.toUrlSafe(userId);
+
+      let checkSum = 0;
+      for (let i = 3; i < 9; i += 3) checkSum ^= buf.readUIntBE(i, 3);
+      for (let i = 0; i < 12; i += 3) checkSum ^= ubuf.readUIntBE(i, 3);
+      if (checkSum !== testCheckSum) return null;
+
+      if (this.nFlags) {
+        const bin = flags.toString(2);
+        result.flags = bin.padStart(this.nFlags, 0).split('').map(Number);
+      }
+
+      return result;
+    } catch (err) {
+      if (this.constructor.errorBadDecrypt.test(err.message)) return null;
+      throw err;
+    }
   }
 }
 
-Crypt.defaultAlgorithm = 'blowfish';
+Crypt.defaultAlgorithm = 'bf-cbc';
 
 Crypt.toUrlSafeRx = /\+|\/|[\w-]+/g;
 
@@ -108,5 +144,7 @@ Crypt.fromUrlSafeMap = {
   '-': '+',
   _: '/'
 };
+
+Crypt.errorBadDecrypt = /^error:060650/;
 
 module.exports = Crypt;

@@ -161,14 +161,13 @@ $ = Clasync.private({
   },
 
   reduce(results) {
-    const result = results.map((v) => (
-      !v ? null :
-      typeof v === 'object' ? v :
-      typeof v === 'function' ? v() :
-      {[v]: true}
-    )).reduce((v1, v2) => Object.assign(v1, v2), this.$.makeObject());
+    const acc = results[0] instanceof Array ? [] : this.$.makeObject();
 
-    return result;
+    for (const obj of results) {
+      this.$.accumulate(acc, obj);
+    }
+
+    return acc;
   }
 });
 

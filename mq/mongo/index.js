@@ -29,7 +29,7 @@ class MqMongoModel extends DbMongoModel {
   }
 }
 
-class MqMongo extends Clasync {
+class MqMongo extends Clasync.Emitter {
   // db - config to create DbMongo instance to use for queues
   // capDb - config to create DbMongo instance to use for events
   // redis - alternatively use redis for pubsub

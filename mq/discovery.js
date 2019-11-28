@@ -7,8 +7,6 @@ class Discovery extends MqDisp {
   // info -- what information to share with
   // db -- if DbMongo instance is specified, info also will include DB stats
 
-  get prefix() { return 'discovery_'; }
-
   async update(info) {
     await this.pub('instanceUp', {instId: this.instId, info});
   }
@@ -33,6 +31,8 @@ class Discovery extends MqDisp {
         instInfo.cpuAvgLoad = 100 - ((100 * idleDifference) / totalDifference | 0);
       }
     }
+
+    return instInfo;
   }
 
   instanceDown({
@@ -79,14 +79,20 @@ class Discovery extends MqDisp {
       this.nInstances++;
     }
 
-    this.instanceUpdate({instId, info});
+    const {cancel, modify} = await this.emit('beforeUp', {instId, info});
+    if (cancel) return;
+
+    const allInfo = this.instanceUpdate({instId, info: Object.assign(info, modify)});
+    this.emit('up', {instId, info: allInfo});
   }
 
   async ['SUB instanceDown']({
     instId
   }) {
     if (!this.instances) return;
-    this.instanceDown({instId, reason: 'managedShutdown'});
+    const args = {instId, reason: 'managedShutdown'};
+    this.instanceDown(args);
+    this.emit('down', args);
   }
 
   async checkExpires() {
@@ -98,7 +104,9 @@ class Discovery extends MqDisp {
         const info = insts[instId];
 
         if (now - info.updatedAt > this.$.msecAliveExpires) {
-          this.instanceDown({instId, reason: 'pingTimeout'});
+          const args = {instId, reason: 'pingTimeout'};
+          this.instanceDown(args);
+          this.emit('down', args);
         }
       }
     }
@@ -140,6 +148,7 @@ class Discovery extends MqDisp {
   }
 
   async init() {
+    if (this.prefix == null) this.prefix = 'discovery_';
     const instId = DbMongo.newShortId();
 
     this.instances = {[instId]: this.info};
@@ -154,6 +163,9 @@ class Discovery extends MqDisp {
     Object.assign(this.info, {createdAt: new Date()});
     this.instanceUpdate({instId});
     await this.keepAliveBound(this.info);
+  }
+
+  async afterInit() {
     await this.pub('pollInstances', {});
   }
 

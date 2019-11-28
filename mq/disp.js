@@ -1,6 +1,6 @@
 const Clasync = require('..');
 
-class MqDisp extends Clasync {
+class MqDisp extends Clasync.Emitter {
   // mq -- message queue (class Mq) instance
   // prefix -- dispatcher group prefix
 

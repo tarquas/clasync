@@ -1,7 +1,7 @@
 const Clasync = require('..');
 const stripe = require('stripe');
 
-class Pay extends Clasync {
+class Pay extends Clasync.Emitter {
   // key: Stripe secret key (sk_...)
 
   static get type() { return 'pay'; }

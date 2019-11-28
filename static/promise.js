@@ -1,11 +1,31 @@
 const util = require('util');
 
 const ClasyncPromise = {
-  promisify(obj, method) {
+  promisify(obj, method, ...rest) {
     if (method == null) return util.promisify(obj);
     const func = typeof method === 'function' ? method : obj[method];
-    const result = util.promisify(func).bind(obj);
+    const result = util.promisify(func).bind(obj, ...rest);
     return result;
+  },
+
+  bind(obj, method, ...rest) {
+    const func = typeof method === 'function' ? method : obj[method];
+    const result = func.bind(obj, ...rest);
+    return result;
+  },
+
+  bindJob(throwOpts, obj, method, ...rest) {
+    const func = typeof method === 'function' ? method : obj[method];
+
+    return async (...args) => {
+      try {
+        return await func.call(obj, ...rest, ...args);
+      } catch (err) {
+        if (obj.throw) obj.throw(err, throwOpts);
+        else if (obj.$ && obj.$.throw) obj.$.throw(err, throwOpts);
+        else this.$.throw(err, throwOpts);
+      }
+    };
   },
 
   async tick(arg) {
@@ -179,6 +199,48 @@ const ClasyncPromise = {
 
     return promise;
   },
+
+  timeThrottle(obj, time, callback) {
+    if (!callback) { callback = time; time = null; }
+    const cur = ClasyncPromise.throttleMap.get(callback);
+    const acc = cur ? cur.acc : obj instanceof Array ? [] : Object.create(null);
+    this.$.accumulate(acc, obj);
+
+    if (cur) {
+      if (time) cur.time = time;
+      return cur.finaled;
+    }
+
+    const newCur = {acc, time: time || this.$.timeThrottleDefault || 1000};
+    ClasyncPromise.throttleMap.set(callback, newCur);
+    ClasyncPromise.timeThrottleTimeout(callback);
+    return true;
+  },
+
+  async timeThrottleTimeout(callback) {
+    const cur = ClasyncPromise.throttleMap.get(callback);
+    const {acc, time} = cur;
+
+    for (const key in acc) {
+      cur.acc = acc instanceof Array ? [] : Object.create(null);
+
+      try {
+        await callback(acc);
+      } finally {
+        if (cur.finish) cur.finish();
+        cur.finaled = new Promise(ok => cur.finish = ok);
+        setTimeout(ClasyncPromise.timeThrottleTimeout, time, callback);
+      }
+
+      return;
+    }
+
+    ClasyncPromise.throttleMap.delete(callback);
+    if (cur.finish) cur.finish();
+  },
+
+  throttleMap: new WeakMap(),
+  timeThrottleDefault: 1000,
 
   raceMap: new Map(),
   promiseValue: Symbol('ClasyncPromise.promiseValue'),

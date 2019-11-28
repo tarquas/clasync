@@ -1,3 +1,5 @@
+// This class is deprecated and will be removed in next major version
+
 const WebRest = require('./rest');
 const body = require('body-parser');
 const Multer = require('multer');

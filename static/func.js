@@ -48,6 +48,22 @@ ClasyncFunc = {
     return Math.min(a,b);
   },
 
+  objSort(func, ...rest) {
+    if (typeof func === 'function') return (a, b) => {
+      const A = func(a, ...rest);
+      const B = func(b, ...rest);
+      const res = A > B ? 1 : A < B ? -1 : 0;
+      return res;
+    }
+
+    return (a, b) => {
+      const A = ClasyncFunc.get(a, func, ...rest);
+      const B = ClasyncFunc.get(b, func, ...rest);
+      const res = A > B ? 1 : A < B ? -1 : 0;
+      return res;
+    };
+  },
+
   get(object, ...walk) {
     let p = object;
 
@@ -86,6 +102,11 @@ ClasyncFunc = {
     return p;
   },
 
+  make(...parts) {
+    const result = Object.assign(Object.create(null), ...ClasyncFunc.flatten(parts));
+    return result;
+  },
+
   makeObject(...parts) {
     const result = Object.assign(Object.create(null), ...ClasyncFunc.flatten(parts));
     return result;
@@ -102,6 +123,19 @@ ClasyncFunc = {
     return keys;
   },
 
+  accumulate(acc, obj) {
+    if (obj instanceof Array) {
+      if (acc.length == null) acc.length = 0;
+      Array.prototype.push.call(acc, ...obj);
+    } else if (typeof obj === 'object') {
+      Object.assign(acc, obj);
+    } else if (typeof obj === 'function') {
+      Object.assign(acc, obj.call(this, acc));
+    } else {
+      Object.assign(acc, {[obj]: true});
+    }
+  },
+
   chunk(array, length) {
     const chunks = ClasyncFunc.range(0, array.length, length);
     ClasyncFunc.maps(chunks, from => array.slice(from, from + length));
@@ -109,12 +143,14 @@ ClasyncFunc = {
   },
 
   clone(obj) {
+    if (obj instanceof Date) return new Date(obj);
     if (obj instanceof Array) return obj.slice();
-    if (typeof obj === 'object') return {...obj};
+    if (typeof obj === 'object') return ClasyncFunc.makeObject(obj);
     return obj;
   },
 
   cloneDeep(obj) {
+    if (obj instanceof Date) return new Date(obj);
     if (obj instanceof Array) return obj.map(ClasyncFunc.cloneDeep);
 
     if (typeof obj === 'object') return ClasyncFunc.makeObject(
@@ -184,7 +220,11 @@ ClasyncFunc = {
 
   inverts(obj, map) {
     const ents = Object.entries(obj);
-    const groups = ClasyncFunc.makeObject(ents.map(([k, v]) => ({[v]: true})));
+
+    const groups = ClasyncFunc.makeObject(ents.map(
+      ([k, v]) => v instanceof Array ? ClasyncFunc.invert(v) : ({[v]: true})
+    ));
+
     ClasyncFunc.mapsValues(groups, () => []);
 
     for (const [k, v] of ents) {
