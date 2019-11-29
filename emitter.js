@@ -164,7 +164,7 @@ $ = Clasync.private({
     const acc = results[0] instanceof Array ? [] : this.$.makeObject();
 
     for (const obj of results) {
-      this.$.accumulate(acc, obj);
+      if (obj !== false) this.$.accumulate(acc, obj);
     }
 
     return acc;
