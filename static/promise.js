@@ -213,8 +213,7 @@ const ClasyncPromise = {
 
     const newCur = {acc, time: time || this.$.timeThrottleDefault || 1000};
     ClasyncPromise.throttleMap.set(callback, newCur);
-    ClasyncPromise.timeThrottleTimeout(callback);
-    return true;
+    return ClasyncPromise.timeThrottleTimeout(callback);;
   },
 
   async timeThrottleTimeout(callback) {
@@ -225,10 +224,16 @@ const ClasyncPromise = {
       cur.acc = acc instanceof Array ? [] : Object.create(null);
 
       try {
-        await callback(acc);
+        const res = await callback(acc);
+        if (cur.ok) cur.ok(res); else return res;
+      } catch (err) {
+        if (cur.nok) cur.nok(err); else throw err;
       } finally {
-        if (cur.finish) cur.finish();
-        cur.finaled = new Promise(ok => cur.finish = ok);
+        cur.finaled = new Promise((ok, nok) => {
+          cur.ok = ok;
+          cur.nok = nok;
+        });
+
         setTimeout(ClasyncPromise.timeThrottleTimeout, time, callback);
       }
 
@@ -236,7 +241,7 @@ const ClasyncPromise = {
     }
 
     ClasyncPromise.throttleMap.delete(callback);
-    if (cur.finish) cur.finish();
+    if (cur.ok) cur.ok(null); else return null;
   },
 
   throttleMap: new WeakMap(),

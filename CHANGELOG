@@ -206,3 +206,11 @@ Web (web/index.js; web/api.js; web/rest.js):
 - `Web.Rest`: add argument support as `req.mwArg` for middleware declaration in REST method;
 - Support middleware from current `Web.Rest` instance, prepended with `.` in declaration;
 - Deprecate `Web.Upload`.
+
+*** Version 0.8.3 - 2019-11-29
+
+Main module (index.js):
+- Flexible `deps` in `.init()`.
+
+Promise utilities (static/promise.js):
+- Return result from `.timeThrottle()` promise.

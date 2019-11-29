@@ -21,24 +21,51 @@ class Clasync extends ClasyncBase {
     Clasync.mainInstance = inst;
   }
 
-  static async subSet(sub) {
-    const inst = this[Clasync.instance];
-    if (!inst || !sub || typeof sub !== 'object') return;
+  static async subSetDep([k, v]) {
+    if (typeof v === 'function') {
+      v = await v.call(this, k);
+    }
 
-    await Promise.all(Object.entries(sub).map(async ([k, v]) => {
-      if (!(v instanceof Array) || !Object.isPrototypeOf.call(Clasync, v[0])) {
-        this[k] = v;
-        await v[Clasync.ready];
-        return;
-      }
+    if (typeof v !== 'object') {
+      this[k] = v;
+      return;
+    }
 
+    if (v instanceof Array && Object.isPrototypeOf.call(Clasync, v[0])) {
+      const inst = this[Clasync.instance];
       const [Class, config] = v;
       const type = this.$.type;
       const parent = type ? {[type]: this} : {};
       const subConfig = {...parent, ...config};
       const newInst = this[k] = new Class(subConfig, inst.$$);
       await newInst[Clasync.ready];
-    }));
+      return;
+    }
+
+    if (v instanceof Promise) {
+      this[k] = v;
+      this[k] = await this[k];
+      return;
+    }
+
+    this[k] = v;
+    await v[Clasync.ready];
+  }
+
+  static async subSetOne(sub) {
+    if (!sub) return;
+    const inst = this[Clasync.instance];
+    if (!inst) return;
+
+    if (typeof sub === 'function') sub = await sub.call(this);
+    if (typeof sub !== 'object') return;
+    if (sub instanceof Promise) sub = await sub;
+
+    await Promise.all(Object.entries(sub).map(dep => Clasync.subSetDep.call(this, dep)));
+  }
+
+  static async subSet(...sub) {
+    await Clasync.all(Clasync.flattenDeep(sub).map(s => Clasync.subSetOne.call(this, s)));
   }
 
   static async isFinal(t) {
