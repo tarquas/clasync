@@ -61,17 +61,11 @@ class DbMongo extends Clasync.Emitter {
     if (!this.connOpts) this.connOpts = {};
     if (!this.prefix) this.prefix = '';
 
-    Object.assign(this.connOpts, {
-      // useMongoClient: true,
-      useCreateIndex: true,
-      useFindAndModify: false,
-      useUnifiedTopology: true,
-      ...this.$.hardOptions
-    });
+    const connOpts = this.$.make(this.$.hardOptions, this.$.softOptions, this.connOpts);
 
     this.conn = await this.common.createConnection(
       this.connString,
-      this.connOpts
+      connOpts
     );
   }
 
@@ -88,8 +82,13 @@ DbMongo.ObjectId = mongoose.Types.ObjectId;
 
 DbMongo.hardOptions = {
   useNewUrlParser: true,
-  autoReconnect: true,
+  useUnifiedTopology: true,
   bufferMaxEntries: 0
+};
+
+DbMongo.softOptions = {
+  useCreateIndex: true,
+  useFindAndModify: false
 };
 
 module.exports = DbMongo;

@@ -724,7 +724,6 @@ class MqMongo extends Clasync.Emitter {
         this.capDb ? this.capDb.connString : this.db.connString,
 
         {
-          useUnifiedTopology: true,
           ...DbMongo.hardOptions,
           forceServerObjectId: true
         }
