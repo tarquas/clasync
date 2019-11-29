@@ -124,6 +124,8 @@ ClasyncFunc = {
   },
 
   accumulate(acc, obj) {
+    if (obj == null) return;
+
     if (obj instanceof Array) {
       if (acc.length == null) acc.length = 0;
       Array.prototype.push.call(acc, ...obj);

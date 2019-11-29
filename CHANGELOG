@@ -174,7 +174,7 @@ Web (web/index.js; web/api.js):
 - Moved automatic `.ready()` to `.afterInit()`;
 - Customizable Web API headers and options: `allowedHeaders`, `exposedHeaders`, `origin`, `compression`, `trustProxy`.
 
-*** Version 0.8.0 - 2019-11-28
+*** Version 0.8.1 - 2019-11-29
 
 Overall (db/; mq/; pay/; web/):
 - Extend classes from `Clasync.Emitter` rather than from `Clasync`.
