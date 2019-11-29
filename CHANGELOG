@@ -207,10 +207,11 @@ Web (web/index.js; web/api.js; web/rest.js):
 - Support middleware from current `Web.Rest` instance, prepended with `.` in declaration;
 - Deprecate `Web.Upload`.
 
-*** Version 0.8.3 - 2019-11-29
+*** Version 0.8.4 - 2019-11-30
 
 Main module (index.js):
 - Flexible `deps` in `.init()`.
 
 Promise utilities (static/promise.js):
-- Return result from `.timeThrottle()` promise.
+- Return result from `$.timeThrottle()` promise;
+- Add `$.bindOnce`.

@@ -21,7 +21,6 @@ class Web extends Clasync.Emitter {
   static get Rest() { return require('./rest'); }
   static get Socket() { return require('./socket'); }
   static get SocketMq() { return require('./socket-mq'); }
-  static get Upload() { return require('./upload'); }
 
   createServers() {
     const bind = `WEB ${this.bind}`;

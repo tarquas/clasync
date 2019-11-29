@@ -14,6 +14,36 @@ const ClasyncPromise = {
     return result;
   },
 
+  boundOnce: new WeakMap(),
+
+  bindOnce(to, obj, method, ...rest) {
+    const func = typeof method === 'function' ? method : obj[method];
+    let funcBinds = ClasyncPromise.boundOnce.get(func);
+    let result, map;
+    const byRef = to && typeof to === 'object';
+
+    if (!funcBinds) {
+      funcBinds = Object.create(null);
+      funcBinds.val = new Map();
+      funcBinds.ref = new WeakMap();
+      ClasyncPromise.boundOnce.set(func, funcBinds);
+      result = false;
+    }
+
+    map = byRef ? funcBinds.ref : funcBinds.val;
+
+    if (result == null) {
+      result = map.get(to);
+    }
+
+    if (!result) {
+      result = func.bind(obj, ...rest);
+      map.set(to, result);
+    }
+
+    return result;
+  },
+
   bindJob(throwOpts, obj, method, ...rest) {
     const func = typeof method === 'function' ? method : obj[method];
 
