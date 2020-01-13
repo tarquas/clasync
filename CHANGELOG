@@ -215,3 +215,11 @@ Main module (index.js):
 Promise utilities (static/promise.js):
 - Return result from `$.timeThrottle()` promise;
 - Add `$.bindOnce`.
+
+*** Version 0.8.5 - 2020-01-13
+
+MQ Mongo-based (mq/mongo/):
+- `.push()`: add `maxTries` and `failQueue` options; `triesLeft` field in DB;
+- Add `queue:discard` pubsub event;
+- Change order of per-queue pubsub events: `QUEUE_NAME:queue:EVENT`;
+- Deprecate global `maxRequeuesOnError`, add global `maxTries` default.

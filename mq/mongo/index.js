@@ -19,7 +19,9 @@ class MqMongoModel extends DbMongoModel {
       priority: Number,
       topic: String,
       important: Boolean,
-      nRequeues: Number
+      nRequeues: Number,
+      nTriesLeft: Number,
+      failQueue: String
     }, {
       collection: this.mq.queueName
     })
@@ -41,6 +43,7 @@ class MqMongo extends Clasync.Emitter {
   get queuePfx() { return 'queue:'; }
   get newTaskEvent() { return 'newTask'; }
   get sleepEvent() { return 'sleep'; }
+  get discardEvent() { return 'discard'; }
 
   async pub(event, payload) {
     if (this.finishing) return null;
@@ -81,7 +84,7 @@ class MqMongo extends Clasync.Emitter {
 
   async signalQueue(args) {
     const {queue} = args;
-    this.pub(`${this.queuePfx}${this.newTaskEvent}:${queue}`, args);
+    this.pub(`${queue}:${this.queuePfx}${this.newTaskEvent}`, args);
     const inserted = await this.pub(`${this.queuePfx}${this.newTaskEvent}`, args);
     return inserted;
   }
@@ -100,7 +103,9 @@ class MqMongo extends Clasync.Emitter {
       priority: +opts.priority || 0,
       topic: (opts.topic || '').toString(),
       important: !!opts.important,
-      nRequeues: 0
+      nRequeues: 0,
+      nTriesLeft: opts.maxTries || this.$.maxTries || -1,
+      failQueue: opts.failQueue || this.$.failQueue || ''
     };
 
     if (opts.expires) $set.expires = new Date(opts.expires);
@@ -116,7 +121,9 @@ class MqMongo extends Clasync.Emitter {
     const item = await this.model.findOneAndUpdate(
       {date: true},
       {$currentDate, $set},
-      {upsert: true, new: true, select: {queue: 1, date: 1, nRequeues: 1}}
+      {upsert: true, new: true, select: {
+        queue: 1, date: 1, nRequeues: 1, nTriesLeft: 1
+      }}
     ).lean().exec();
 
     const ttl = parseInt(opts.ttl) || (opts.temp && this.visibilityMsec);
@@ -131,8 +138,10 @@ class MqMongo extends Clasync.Emitter {
     await this.signalQueue({
       queue,
       event: 'push',
+      id,
       at: item.date,
-      expires: item.expires
+      expires: item.expires,
+      nTriesLeft: item.nTriesLeft
     });
 
     return item;
@@ -153,19 +162,27 @@ class MqMongo extends Clasync.Emitter {
     }
 
     if (err) upd.$inc = {nRequeues: 1};
+    else upd.$inc = {nTriesLeft: 1};
 
     const item = await this.model.findOneAndUpdate(
       {_id: id},
       upd,
-      {select: {queue: 1, date: 1, expires: 1, nRequeues: 1}, new: true}
+      {
+        select: {
+          queue: 1, date: 1, expires: 1, nRequeues: 1, nTriesLeft: 1
+        },
+        new: true
+      }
     ).lean().exec();
 
     if (item) await this.signalQueue({
       queue: item.queue,
       event: 'requeue',
+      id,
       at: item.date,
       expires: item.expires,
-      errors: item.nRequeues
+      errors: item.nRequeues,
+      nTriesLeft: item.nTriesLeft
     });
 
     return item;
@@ -311,7 +328,8 @@ class MqMongo extends Clasync.Emitter {
 
             {
               $currentDate: {curDate: true},
-              $set: {date: new Date(now + this.visibilityMsec)}
+              $set: {date: new Date(now + this.visibilityMsec)},
+              $inc: {nTriesLeft: -1}
             },
 
             {sort: {queue: 1, priority: 1, date: 1}, new: true}
@@ -344,8 +362,10 @@ class MqMongo extends Clasync.Emitter {
               if (nextDelay < delay) delay = nextDelay;
             }*/
 
-            this.pub(`${this.queuePfx}${this.sleepEvent}`, {queue, delay});
-            this.pub(`${this.queuePfx}${this.sleepEvent}:${queue}`, {queue, delay});
+            const obj = {queue, delay};
+            this.pub(`${queue}:${this.queuePfx}${this.sleepEvent}`, obj);
+            this.pub(`${this.queuePfx}${this.sleepEvent}`, obj);
+            this.pub(`${this.queuePfx}${this.sleepEvent}:${queue}`, obj); //TODO: deprecate
 
             await this.$.race([object.wait, this.$.delay(delay)]);
 
@@ -354,12 +374,41 @@ class MqMongo extends Clasync.Emitter {
             continue;
           }
 
+          if (diff < this.lagLatencySec) object.sync = item.curDate - new Date();
+
           if (item.expires < now) {
+            const obj = {queue, event: 'expired', id: item._id};
+            this.pub(`${this.queuePfx}${this.discardEvent}`, obj);
+            this.pub(`${queue}:${this.queuePfx}${this.discardEvent}`, obj);
             await this.model.deleteOne({_id: item._id});
             continue;
           }
 
-          if (diff < this.lagLatencySec) object.sync = item.curDate - new Date();
+          if (item.nTriesLeft === -1) {
+            if (item.failQueue) {
+              await this.model.updateOne(
+                {_id: item._id},
+                {$set: {queue: item.failQueue, date: item.curDate}}
+              );
+
+              await this.signalQueue({
+                queue: item.failQueue,
+                event: 'failTries',
+                failedQueue: queue,
+                id: item._id,
+                at: item.date,
+                expires: item.expires,
+                nTriesLeft: item.nTriesLeft
+              });
+            } else {
+              const obj = {queue, event: 'failTries', id: item._id, at: item.date};
+              this.pub(`${this.queuePfx}${this.discardEvent}`, obj);
+              this.pub(`${queue}:${this.queuePfx}${this.discardEvent}:${queue}`, obj);
+              await this.model.deleteOne({_id: item._id});
+            }
+
+            continue;
+          }
 
           if (!opts.noTopic && item.topic) {
             const raceProj = {_id: 1};
@@ -389,7 +438,7 @@ class MqMongo extends Clasync.Emitter {
 
               if (first._id !== item._id) {
                 if (this.debugRace) this.$.logDebug([this.debugRace], `MQ RACE Requeue: ${item.message}`);
-                await this.requeue(item._id, null, item.curDate);
+                await this.requeue(item._id, false, item.curDate);
                 continue;
               }
             }
@@ -428,9 +477,9 @@ class MqMongo extends Clasync.Emitter {
             } catch (err) {
               if (this[this.$.instance].final) return null;
 
-              if ((item.nRequeues | 0) < this.$.maxRequeuesOnError) {
-                await this.requeue(object.id, true);
-              }
+              // if ((item.nRequeues | 0) < this.$.maxRequeuesOnError) {
+              await this.requeue(object.id, true);
+              // }
 
               if (!(await this.error(err, {
                 id: queue,
@@ -815,7 +864,9 @@ MqMongo.visibilityMsec = 60000;
 MqMongo.pubsubCapSize = 1024 * 1024 * 5;
 MqMongo.tailableRetryInterval = 2000;
 
-MqMongo.maxRequeuesOnError = 3;
+//MqMongo.maxRequeuesOnError = 3;
+MqMongo.maxTries = -1;
+MqMongo.failQueue = '';
 MqMongo.maxSyncRetries = 3;
 
 MqMongo.accuracyFraction = 3;
