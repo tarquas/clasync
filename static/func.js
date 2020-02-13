@@ -94,7 +94,7 @@ ClasyncFunc = {
     const last = walk.pop();
 
     for (const step of walk) {
-      if (p[step] == null) p[step] = typeof step === 'number' ? [] : ClasyncFunc.makeObject();
+      if (p[step] == null) p[step] = typeof step === 'number' ? [] : ClasyncFunc.make();
       p = p[step];
     }
 
@@ -115,8 +115,8 @@ ClasyncFunc = {
   objectOrUndefined: {object: 1, undefined: 1},
 
   uniqKeys(what, def) {
-    const keys = ClasyncFunc.makeObject(what.map(i => (
-      i instanceof Array ? ClasyncFunc.makeObject(i.map(j => ({[j]: def}))) :
+    const keys = ClasyncFunc.make(what.map(i => (
+      i instanceof Array ? ClasyncFunc.make(i.map(j => ({[j]: def}))) :
       typeof i in ClasyncFunc.objectOrUndefined ? i : ({[i]: def})
     )));
 
@@ -147,7 +147,7 @@ ClasyncFunc = {
   clone(obj) {
     if (obj instanceof Date) return new Date(obj);
     if (obj instanceof Array) return obj.slice();
-    if (typeof obj === 'object') return ClasyncFunc.makeObject(obj);
+    if (typeof obj === 'object') return ClasyncFunc.make(obj);
     return obj;
   },
 
@@ -155,7 +155,7 @@ ClasyncFunc = {
     if (obj instanceof Date) return new Date(obj);
     if (obj instanceof Array) return obj.map(ClasyncFunc.cloneDeep);
 
-    if (typeof obj === 'object') return ClasyncFunc.makeObject(
+    if (typeof obj === 'object') return ClasyncFunc.make(
       Object.entries(obj)
       .map(([k, v]) => ({[k]: ClasyncFunc.cloneDeep(v)}))
     );
@@ -187,7 +187,7 @@ ClasyncFunc = {
   },
 
   fromPairs(pairs) {
-    const result = ClasyncFunc.makeObject(pairs.map(([k, v]) => ({[k]: v})));
+    const result = ClasyncFunc.make(pairs.map(([k, v]) => ({[k]: v})));
     return result;
   },
 
@@ -216,14 +216,14 @@ ClasyncFunc = {
   },
 
   invert(obj) {
-    const result = ClasyncFunc.makeObject(Object.entries(obj).map(([k, v]) => ({[v]: k})));
+    const result = ClasyncFunc.make(Object.entries(obj).map(([k, v]) => ({[v]: k})));
     return result;
   },
 
   inverts(obj, map) {
     const ents = Object.entries(obj);
 
-    const groups = ClasyncFunc.makeObject(ents.map(
+    const groups = ClasyncFunc.make(ents.map(
       ([k, v]) => v instanceof Array ? ClasyncFunc.invert(v) : ({[v]: true})
     ));
 
@@ -254,7 +254,7 @@ ClasyncFunc = {
   },
 
   mapKeys(obj, func) {
-    const result = ClasyncFunc.makeObject(Object.entries(obj).map(([k, v]) => {
+    const result = ClasyncFunc.make(Object.entries(obj).map(([k, v]) => {
       const key = func.call(obj, k, v, obj);
       const result = ({[key]: v});
       return result;
@@ -264,7 +264,7 @@ ClasyncFunc = {
   },
 
   mapValues(obj, func) {
-    const result = ClasyncFunc.makeObject(Object.entries(obj).map(([k, v]) => {
+    const result = ClasyncFunc.make(Object.entries(obj).map(([k, v]) => {
       const value = func.call(obj, k, v, obj);
       const result = ({[k]: value});
       return result;
@@ -295,7 +295,7 @@ ClasyncFunc = {
   omit(from, ...what) {
     const keys = ClasyncFunc.uniqKeys(what);
 
-    const result = ClasyncFunc.makeObject(Object.entries(from).map(([k, v]) => (
+    const result = ClasyncFunc.make(Object.entries(from).map(([k, v]) => (
       k in keys ? null : ({[k]: v})
     )));
 
@@ -331,7 +331,7 @@ ClasyncFunc = {
   pick(from, ...what) {
     const keys = ClasyncFunc.uniqKeys(what);
 
-    const result = ClasyncFunc.makeObject(Object.keys(keys).map(key => (
+    const result = ClasyncFunc.make(Object.keys(keys).map(key => (
       key in from ? ({[key]: from[key]}) : null
     )));
 
@@ -339,7 +339,7 @@ ClasyncFunc = {
   },
 
   pickBy(from, func) {
-    const result = ClasyncFunc.makeObject(
+    const result = ClasyncFunc.make(
       Object.entries(from)
       .filter(([k, v]) => func.call(from, k, v, from))
       .map(([k, v]) => ({[k]: v}))
@@ -390,7 +390,7 @@ ClasyncFunc = {
   setTree(obj, to, opts) {
     if (typeof obj !== 'object') return obj;
     const o = opts || {};
-    const r = to || ClasyncFunc.makeObject();
+    const r = to || ClasyncFunc.make();
 
     for (const [k, v] of Object.entries(obj)) {
       const [, key, rest] = k.match(ClasyncFunc.rxDotSplit) || [];
@@ -399,7 +399,7 @@ ClasyncFunc = {
       if (isObj) {
         ClasyncFunc.setTree(
           rest ? {[rest]: v} : v,
-          typeof r[key] === 'object' ? r[key] : (r[key] = ClasyncFunc.makeObject()),
+          typeof r[key] === 'object' ? r[key] : (r[key] = ClasyncFunc.make()),
           opts
         );
       } else {
@@ -422,7 +422,7 @@ ClasyncFunc = {
   },
 
   zipObject(keys, values) {
-    const result = ClasyncFunc.makeObject(keys.map((key, i) => ({[key]: values[i]})));
+    const result = ClasyncFunc.make(keys.map((key, i) => ({[key]: values[i]})));
     return result;
   }
 };

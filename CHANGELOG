@@ -223,3 +223,8 @@ MQ Mongo-based (mq/mongo/):
 - Add `queue:discard` pubsub event;
 - Change order of per-queue pubsub events: `QUEUE_NAME:queue:EVENT`;
 - Deprecate global `maxRequeuesOnError`, add global `maxTries` default.
+
+*** Version 0.8.6 - 2020-02-13
+
+Cache (cache.js):
+- Events (expire, replace, remove, add).

@@ -229,6 +229,7 @@ class MqMongo extends Clasync.Emitter {
     for (const workerId in free) {
       const worker = this.workers[+workerId];
       delete free[workerId];
+      if (!worker) continue;
 
       if (worker.resume) worker.resume();
 
