@@ -277,6 +277,25 @@ const ClasyncPromise = {
   throttleMap: new WeakMap(),
   timeThrottleDefault: 1000,
 
+  callOnce(fn) {
+    const map = ClasyncPromise.callOnceMap;
+    if (map.has(fn)) return map.get(fn).promise;
+
+    const promise = (async () => {
+      try {
+        const res = await fn();
+        return res;
+      } finally {
+        map.delete(fn);
+      }
+    })();
+
+    map.set(fn, {promise});
+    return promise;
+  },
+
+  callOnceMap: new WeakMap(),
+
   raceMap: new Map(),
   promiseValue: Symbol('ClasyncPromise.promiseValue'),
   promiseIsError: Symbol('ClasyncPromise.promiseIsError')

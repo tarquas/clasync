@@ -229,7 +229,7 @@ MQ Mongo-based (mq/mongo/):
 Cache (cache.js):
 - Events (expire, replace, remove, add).
 
-*** Version 0.8.7 - 2020-03-10
+*** Version 0.8.8 - 2020-03-10
 
 DB Mongo (db/mongo/):
 - Add `crashOnDisonnect` boolean property;
@@ -238,4 +238,9 @@ DB Mongo (db/mongo/):
 MQ Mongo-based (mq/mongo/):
 - Add `failReason`, `requeueOnErrorMsec`;
 - Default `failQueue` to 'unhandledExceptions';
-- Default `maxTries` to 3.
+- Default `maxTries` to 3;
+- Default `requeueOnErrorMsec` to 21000;
+- Fix `syncTime` flood bug.
+
+Promise utilities (static/promise.js):
+- Add `$.callOnce()`.

@@ -259,6 +259,11 @@ class MqMongo extends Clasync.Emitter {
   }
 
   async syncTime() {
+    const curDate = await this.$.callOnce(this.syncTimeBound);
+    return curDate;
+  }
+
+  async syncTimeFunc() {
     let retries = this.$.maxSyncRetries;
 
     while (true) {
@@ -765,7 +770,6 @@ class MqMongo extends Clasync.Emitter {
     this.nowSyncMsec = this.accuracyMsec / 2;
     this.prolongMsec = this.accuracyMsec / this.$.prolongFraction;
     this.lagLatencySec = this.nowSyncMsec / this.$.lagLatencyFraction / 1000;
-
     this.dbMongo = await new DbMongo(this.db)[Clasync.ready];
     this.dbMongo[this.$.instance].detached = true;
 
@@ -796,6 +800,8 @@ class MqMongo extends Clasync.Emitter {
     this.waitTerminate = new Promise((resolve) => {
       this.terminate = resolve;
     });
+
+    this.syncTimeBound = this.syncTimeFunc.bind(this);
 
     this.workerProlongVisibilityBound = this.workerProlongVisibility.bind(this);
     await this.sub(this.queuePfx + this.newTaskEvent, this.takeFreeWorker);
@@ -869,13 +875,13 @@ MqMongo.visibilityMsec = 60000;
 MqMongo.pubsubCapSize = 1024 * 1024 * 5;
 MqMongo.tailableRetryInterval = 2000;
 
-MqMongo.requeueOnErrorMsec = 15000;
+MqMongo.requeueOnErrorMsec = 21000;
 MqMongo.maxTries = 3;
 MqMongo.failQueue = 'unhandledExceptions';
 MqMongo.maxSyncRetries = 3;
 
 MqMongo.accuracyFraction = 3;
 MqMongo.prolongFraction = 1;
-MqMongo.lagLatencyFraction = 4;
+MqMongo.lagLatencyFraction = 2;
 
 module.exports = MqMongo;
