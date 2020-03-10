@@ -21,7 +21,8 @@ class MqMongoModel extends DbMongoModel {
       important: Boolean,
       nRequeues: Number,
       nTriesLeft: Number,
-      failQueue: String
+      failQueue: String,
+      failReason: String,
     }, {
       collection: this.mq.queueName
     })
@@ -104,8 +105,8 @@ class MqMongo extends Clasync.Emitter {
       topic: (opts.topic || '').toString(),
       important: !!opts.important,
       nRequeues: 0,
-      nTriesLeft: opts.maxTries || this.$.maxTries || -1,
-      failQueue: opts.failQueue || this.$.failQueue || ''
+      nTriesLeft: opts.maxTries || this.maxTries || this.$.maxTries || -1,
+      failQueue: opts.failQueue || this.failQueue || this.$.failQueue || ''
     };
 
     if (opts.expires) $set.expires = new Date(opts.expires);
@@ -152,7 +153,7 @@ class MqMongo extends Clasync.Emitter {
     return removed;
   }
 
-  async requeue(id, err, date) {
+  async requeue(id, err, date, reason) {
     const upd = {$currentDate: {curDate: {$type: 'timestamp'}}};
 
     if (date) {
@@ -163,6 +164,8 @@ class MqMongo extends Clasync.Emitter {
 
     if (err) upd.$inc = {nRequeues: 1};
     else upd.$inc = {nTriesLeft: 1};
+
+    if (reason) this.$.set(upd, '$set', 'failReason', reason);
 
     const item = await this.model.findOneAndUpdate(
       {_id: id},
@@ -339,20 +342,13 @@ class MqMongo extends Clasync.Emitter {
           const diff = process.uptime() - start;
 
           if (!item) {
-            let curDate = object.sync + new Date();
-
-            /*if (diff < this.lagLatencySec) {
-              curDate = await this.syncTime();
-              object.sync = curDate - new Date();
-            } else {
-              
-            }*/
+            let curDate = new Date(+new Date() + object.sync);
 
             this.setFreeWorker(workerId);
 
             let delay = this.visibilityMsec;
 
-            /*const nextItems = await this.model.find({
+            const nextItems = await this.model.find({
               queue,
               date: {$gt: curDate}
             }).sort({queue: 1, priority: 1, date: 1}).limit(1).lean().exec();
@@ -361,7 +357,7 @@ class MqMongo extends Clasync.Emitter {
               const next = nextItems[0];
               const nextDelay = next.date - curDate;
               if (nextDelay < delay) delay = nextDelay;
-            }*/
+            }
 
             const obj = {queue, delay};
             this.pub(`${queue}:${this.queuePfx}${this.sleepEvent}`, obj);
@@ -389,7 +385,12 @@ class MqMongo extends Clasync.Emitter {
             if (item.failQueue) {
               await this.model.updateOne(
                 {_id: item._id},
-                {$set: {queue: item.failQueue, date: item.curDate}}
+
+                {$set: {
+                  queue: item.failQueue,
+                  date: item.curDate,
+                  failQueue: queue
+                }}
               );
 
               await this.signalQueue({
@@ -439,7 +440,7 @@ class MqMongo extends Clasync.Emitter {
 
               if (first._id !== item._id) {
                 if (this.debugRace) this.$.logDebug([this.debugRace], `MQ RACE Requeue: ${item.message}`);
-                await this.requeue(item._id, false, item.curDate);
+                await this.requeue(item._id, false, item.curDate, 'MQ RACE Requeue');
                 continue;
               }
             }
@@ -466,7 +467,7 @@ class MqMongo extends Clasync.Emitter {
             }
 
             try {
-              const result = await onData.call(this, decoded);
+              const result = await onData.call(this, decoded, item);
 
               if (!item.important && this[this.$.instance].final) return null;
 
@@ -478,15 +479,18 @@ class MqMongo extends Clasync.Emitter {
             } catch (err) {
               if (this[this.$.instance].final) return null;
 
-              // if ((item.nRequeues | 0) < this.$.maxRequeuesOnError) {
-              await this.requeue(object.id, true);
-              // }
-
               if (!(await this.error(err, {
                 id: queue,
                 msg: item.message,
                 type: 'WORKER'
-              }))) throw err;
+              }))) {
+                await this.requeue(
+                  object.id,
+                  true,
+                  new Date(+item.curDate + this.$.requeueOnErrorMsec),
+                  err && (err.stack || err.message || err).toString()
+                );
+              }
             }
 
             if (item.important) {
@@ -506,7 +510,7 @@ class MqMongo extends Clasync.Emitter {
     });
 
     object.promise.catch((err) => {
-      this.error(err, {id: 'global', msg: '', type: 'WORKER'});
+      this.error(err, {id: '<fatal>', msg: '', type: 'WORKER'});
     });
 
     return workerId;
@@ -527,7 +531,7 @@ class MqMongo extends Clasync.Emitter {
     const workerId = this.sub(rpcId, response);
     await this.push(queue, {rpcId, args: payload}, {temp: true, ...opts});
 
-    const msg = await this.race([
+    const msg = await this.$.race([
       waitResponse,
       waitTimer,
       this.waitTerminate
@@ -592,7 +596,7 @@ class MqMongo extends Clasync.Emitter {
 
   async error(err, {id, type}) {
     if (!this.errorSilent) this.$.throw(err, `MQ ${type.toUpperCase()} ${id}`);
-    return true;
+    return false;
   }
 
   async info(queue) {
@@ -865,9 +869,9 @@ MqMongo.visibilityMsec = 60000;
 MqMongo.pubsubCapSize = 1024 * 1024 * 5;
 MqMongo.tailableRetryInterval = 2000;
 
-//MqMongo.maxRequeuesOnError = 3;
-MqMongo.maxTries = -1;
-MqMongo.failQueue = '';
+MqMongo.requeueOnErrorMsec = 15000;
+MqMongo.maxTries = 3;
+MqMongo.failQueue = 'unhandledExceptions';
 MqMongo.maxSyncRetries = 3;
 
 MqMongo.accuracyFraction = 3;

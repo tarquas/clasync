@@ -228,3 +228,14 @@ MQ Mongo-based (mq/mongo/):
 
 Cache (cache.js):
 - Events (expire, replace, remove, add).
+
+*** Version 0.8.7 - 2020-03-10
+
+DB Mongo (db/mongo/):
+- Add `crashOnDisonnect` boolean property;
+- Add `.on('disconnect')` event.
+
+MQ Mongo-based (mq/mongo/):
+- Add `failReason`, `requeueOnErrorMsec`;
+- Default `failQueue` to 'unhandledExceptions';
+- Default `maxTries` to 3.

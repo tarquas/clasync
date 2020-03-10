@@ -243,7 +243,7 @@ const ClasyncPromise = {
 
     const newCur = {acc, time: time || this.$.timeThrottleDefault || 1000};
     ClasyncPromise.throttleMap.set(callback, newCur);
-    return ClasyncPromise.timeThrottleTimeout(callback);;
+    return ClasyncPromise.timeThrottleTimeout(callback);
   },
 
   async timeThrottleTimeout(callback) {
