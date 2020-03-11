@@ -323,7 +323,7 @@ class MqMongo extends Clasync.Emitter {
             date: {$lt: new Date(now + this.accuracyMsec)}
           };
 
-          if (!opts.noTopic) {
+          if (opts.topic) {
             const currentTopics = (await this.model.distinct('topic', {
               queue,
               date: {$gte: new Date(now + this.accuracyMsec)}
@@ -417,7 +417,7 @@ class MqMongo extends Clasync.Emitter {
             continue;
           }
 
-          if (!opts.noTopic && item.topic) {
+          if (opts.topic && item.topic) {
             const raceProj = {_id: 1};
             if (this.debugRace) raceProj.message = 1;
 

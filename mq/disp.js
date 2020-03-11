@@ -53,7 +53,7 @@ class MqDisp extends Clasync.Emitter {
     for (let i = 0; i < n; i++) {
       const handlerId = await func.call(this.mq, fullName, handler.bind(this), {
         important: '!' in opts,
-        noTopic: '?' in opts
+        topic: '?' in opts
       });
 
       ac.push(handlerId);
@@ -95,6 +95,6 @@ class MqDisp extends Clasync.Emitter {
   }
 }
 
-MqDisp.rxSocketQueue = /^([!\$]*)\s*(?:(\d+)\s*\*\s*)?(\w+)\s+(\S+)$/;
+MqDisp.rxSocketQueue = /^([!?]*)\s*(?:(\d+)\s*\*\s*)?(\w+)\s+(\S+)$/;
 
 module.exports = MqDisp;
