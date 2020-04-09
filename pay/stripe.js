@@ -19,7 +19,7 @@ class Pay extends Clasync.Emitter {
   }
 
   async init() {
-    this.stripe = stripe(this.key);
+    this.stripe = stripe(this.key, this.opts);
     this.$.promisifyAll(this.stripe, this);
     await this.disputes.list();
   }
