@@ -245,3 +245,13 @@ MQ Mongo-based (mq/mongo/):
 
 Promise utilities (static/promise.js):
 - Add `$.callOnce()`.
+
+*** Version 0.9.0 - 2020-04-09
+
+Functional (static/func.js):
+- Add: `$.int32()`, `$.int()`, `$.string()`, `$.funcSort()` moved out from `$.objSort()`, `$.objFuncSort()`;
+- Add: `$.ensure()`, `$.setDef()`, `$.setPush()`, `$.setUnshift()`, `$.setExtend()`, `$.setDefaults()`;
+- `$.accumulator` is suitable for `[].reduce()`.
+
+Promise utilities (static/promise.js):
+- Add `$.IoC()`.

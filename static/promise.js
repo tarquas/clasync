@@ -296,6 +296,16 @@ const ClasyncPromise = {
 
   callOnceMap: new WeakMap(),
 
+  IoC(config, hub) {
+    const {IoCs} = ClasyncPromise;
+    if (IoCs.has(config)) return IoCs.get(config);
+    const inst = new this(config, hub);
+    IoCs.set(config, inst);
+    return inst;
+  },
+
+  IoCs: new WeakMap(),
+
   raceMap: new Map(),
   promiseValue: Symbol('ClasyncPromise.promiseValue'),
   promiseIsError: Symbol('ClasyncPromise.promiseIsError')

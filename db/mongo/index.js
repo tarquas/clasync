@@ -74,6 +74,7 @@ class DbMongo extends Clasync.Emitter {
   async onDisconnected(...args) {
     const result = await this.emit('disconnect', ...args);
     if (this.$.hasKeys(result)) return;
+    if (this[this.$.instance].final) return;
     const cod = this.crashOnDisconnect || this.$.crashOnDisconnect;
     if (cod) this.$.exit(typeof cod === 'string' ? cod : 'DB disconnect');
   }

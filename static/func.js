@@ -41,24 +41,47 @@ ClasyncFunc = {
   },
 
   max(a, b) {
-    return Math.max(a,b);
+    return Math.max(a, b);
   },
 
   min(a, b) {
-    return Math.min(a,b);
+    return Math.min(a, b);
   },
 
-  objSort(func, ...rest) {
-    if (typeof func === 'function') return (a, b) => {
+  int32(a) {
+    return a | 0;
+  },
+
+  int(a) {
+    return parseInt(a);
+  },
+
+  string(a) {
+    return a == null ? String(a) : a.toString();
+  },
+
+  funcSort(func, ...rest) {
+    return (a, b) => {
       const A = func(a, ...rest);
       const B = func(b, ...rest);
       const res = A > B ? 1 : A < B ? -1 : 0;
       return res;
     }
+  },
 
+  objSort(...walk) {
     return (a, b) => {
-      const A = ClasyncFunc.get(a, func, ...rest);
-      const B = ClasyncFunc.get(b, func, ...rest);
+      const A = ClasyncFunc.get(a, ...walk);
+      const B = ClasyncFunc.get(b, ...walk);
+      const res = A > B ? 1 : A < B ? -1 : 0;
+      return res;
+    };
+  },
+
+  objFuncSort(...walk) {
+    return (a, b) => {
+      const A = ClasyncFunc.get(func(a), ...walk);
+      const B = ClasyncFunc.get(func(b), ...walk);
       const res = A > B ? 1 : A < B ? -1 : 0;
       return res;
     };
@@ -87,19 +110,78 @@ ClasyncFunc = {
     return p;
   },
 
-  set(object, ...walk) {
+  ensure(object, walk) {
     let p = object;
     if (p == null) return p;
-    const value = walk.pop();
-    const last = walk.pop();
 
     for (const step of walk) {
       if (p[step] == null) p[step] = typeof step === 'number' ? [] : ClasyncFunc.make();
       p = p[step];
     }
 
+    return p;
+  },
+
+  set(object, ...walk) {
+    if (object == null) return object;
+    const value = walk.pop();
+    const last = walk.pop();
+    const p = ClasyncFunc.ensure(object, walk);
     p[last] = value;
     return p;
+  },
+
+  setDef(object, ...walk) {
+    if (object == null) return object;
+    const value = walk.pop();
+    const last = walk.pop();
+    const p = ClasyncFunc.ensure(object, walk);
+    if (!(last in p)) { p[last] = value; return value; }
+    return p[last];
+  },
+
+  setPush(object, ...walk) {
+    if (object == null) return object;
+    const value = walk.pop();
+    const last = walk.pop();
+    const p = ClasyncFunc.ensure(object, walk);
+    let arr = p[last];
+    if (!(arr instanceof Array)) p[last] = arr = [value];
+    else arr.push(value)
+    return arr;
+  },
+
+  setUnshift(object, ...walk) {
+    if (object == null) return object;
+    const value = walk.pop();
+    const last = walk.pop();
+    const p = ClasyncFunc.ensure(object, walk);
+    let arr = p[last];
+    if (!(arr instanceof Array)) p[last] = arr = [value];
+    else arr.unshift(value)
+    return arr;
+  },
+
+  setExtend(object, ...walk) {
+    if (object == null) return object;
+    const value = walk.pop();
+    const last = walk.pop();
+    const p = ClasyncFunc.ensure(object, walk);
+    let obj = p[last];
+    if (!(typeof obj === 'object')) p[last] = obj = this.$.make(value);
+    else Object.assign(obj, value);
+    return obj;
+  },
+
+  setDefaults(object, ...walk) {
+    if (object == null) return object;
+    const value = walk.pop();
+    const last = walk.pop();
+    const p = ClasyncFunc.ensure(object, walk);
+    let obj = p[last];
+    if (!(typeof obj === 'object')) p[last] = obj = this.$.make(value);
+    else ClasyncFunc.defaults(obj, value);
+    return obj;
   },
 
   make(...parts) {
@@ -124,7 +206,7 @@ ClasyncFunc = {
   },
 
   accumulate(acc, obj) {
-    if (obj == null) return;
+    if (obj == null) return acc;
 
     if (obj instanceof Array) {
       if (acc.length == null) acc.length = 0;
@@ -136,6 +218,8 @@ ClasyncFunc = {
     } else {
       Object.assign(acc, {[obj]: true});
     }
+
+    return acc;
   },
 
   chunk(array, length) {
