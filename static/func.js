@@ -495,13 +495,13 @@ ClasyncFunc = {
       typeof func === 'function' ?
 
       ([k, v]) => {
-        const value = func[v];
+        const value = func.call(obj, k, v, obj);
         const result = ({[k]: value});
         return result;
       } :
 
       ([k, v]) => {
-        const value = func.call(obj, k, v, obj);
+        const value = func[v];
         const result = ({[k]: value});
         return result;
       }
