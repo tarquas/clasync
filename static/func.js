@@ -40,12 +40,20 @@ ClasyncFunc = {
     return (+a || 0) + (+b || 0);
   },
 
+  prod(a, b) {
+    return a * b;
+  },
+
+  safeProd(a, b) {
+    return (+a || 1) * (+b || 1);
+  },
+
   max(a, b) {
-    return Math.max(a, b);
+    return a > b ? a : b;
   },
 
   min(a, b) {
-    return Math.min(a, b);
+    return a < b ? a : b;
   },
 
   int32(a) {
@@ -56,8 +64,56 @@ ClasyncFunc = {
     return parseInt(a);
   },
 
+  keyValueString(k, v) {
+    return `${k}: ${v}`;
+  },
+
   string(a) {
-    return a == null ? String(a) : a.toString();
+    if (a == null) return String(a);
+    if (a instanceof Date) return a.toISOString();
+
+    if (a instanceof Set) a = Array.from(a);
+    else if (a instanceof Map) a = Array.from(a.map(ClasyncFunc.keyValueString));
+
+    if (a instanceof Array) return a.join(', ');
+    if (typeof a === 'object') return Object.entries(a).map(ClasyncFunc.keyValueString).join(', ');
+    return a.toString();
+  },
+
+  jsonString(obj, space, opts = {}) {
+    const objs = new WeakMap();
+
+    const replacer = opts.rawReplacer || ((k, v) => {
+      if (opts.replacer) v = opts.replacer.call(this, k, v);
+      if (!v || typeof v !== 'object') return v;
+
+      if (objs.has(v)) {
+        if (opts.circular) return opts.circular.call(this, k, v);
+        return `[Circular ${this.$.getDef(v, 'constructor', 'name', '<null>')}]`;
+      }
+
+      objs.set(v, true);
+      if (v instanceof Set) return Array.from(v);
+      if (v instanceof Map) return ClasyncFunc.fromPairs(Array.from(v));
+
+      if (v instanceof WeakMap) {
+        if (opts.special) return opts.special.call(this, k, v);
+        return `[${this.$.getDef(v, 'constructor', 'name', '<null>')}]`;
+      }
+
+      return v;
+    });
+
+    return JSON.stringify(obj, replacer, space);
+  },
+
+  jsonParse(json, def) {
+    try {
+      return JSON.parse(json);
+    } catch (err) {
+      if (err.constructor === SyntaxError) return def;
+      throw err;
+    }
   },
 
   funcSort(func, ...rest) {
@@ -152,13 +208,17 @@ ClasyncFunc = {
 
     if (last in p) {
       if (value instanceof Array) p[last].push(...value);
-      else if (typeof value === 'object') p[last] = ClasyncFunc.make(value);
+      else if (value instanceof Set) value.forEach(item => p[last].add(item));
+      else if (value instanceof Map) value.forEach((v, k) => p[last].set(k, v));
+      else if (typeof value === 'object') Object.assign(p[last], value);
       else if (typeof value === 'boolean') p[last] |= value;
       else if (typeof value === 'function') value(p[last], p, last);
       else if (typeof value === 'undefined') delete p[last];
       else p[last] += value;
     } else {
       if (value instanceof Array) p[last] = [...value];
+      else if (value instanceof Set) p[last] = new Set(value);
+      else if (value instanceof Map) p[last] = new Map(value);
       else if (typeof value === 'object') p[last] = ClasyncFunc.make(value);
       else if (typeof value === 'function') value(p[last], p, last);
       else if (typeof value === 'undefined') {}
@@ -239,6 +299,12 @@ ClasyncFunc = {
     if (obj instanceof Array) {
       if (acc.length == null) acc.length = 0;
       Array.prototype.push.call(acc, ...obj);
+    } else if (obj instanceof Set) {
+      if (acc.add) obj.forEach(item => acc.add(item));
+      else Array.prototype.push.call(acc, ...obj.values());
+    } else if (obj instanceof Map) {
+      if (acc.set) obj.forEach((v, k) => acc.set(k, v));
+      else Object.assign(acc, ClasyncFunc.fromPairs(Array.from(obj.entries())));
     } else if (typeof obj === 'object') {
       Object.assign(acc, obj);
     } else if (typeof obj === 'function') {
@@ -257,15 +323,21 @@ ClasyncFunc = {
   },
 
   clone(obj) {
+    if (!obj) return obj;
     if (obj instanceof Date) return new Date(obj);
     if (obj instanceof Array) return obj.slice();
+    if (obj instanceof Map) return new Map(obj);
+    if (obj instanceof Set) return new Set(obj);
     if (typeof obj === 'object') return ClasyncFunc.make(obj);
     return obj;
   },
 
   cloneDeep(obj) {
+    if (!obj) return obj;
     if (obj instanceof Date) return new Date(obj);
     if (obj instanceof Array) return obj.map(ClasyncFunc.cloneDeep);
+    if (obj instanceof Map) return new Map(obj);
+    if (obj instanceof Set) return new Set(obj);
 
     if (typeof obj === 'object') return ClasyncFunc.make(
       Object.entries(obj)
@@ -314,15 +386,40 @@ ClasyncFunc = {
     return false;
   },
 
+  numKeys(obj) {
+    let n = 0;
+    for (const key in obj) n++;
+    return n;
+  },
+
+  anyInstanceOf(obj, ...types) {
+    for (const type of types) {
+      if (obj instanceof type) return true;
+    }
+
+    return false;
+  },
+
+  iterableTypes: [Array, Map, Set],
+
   firstKey(obj) {
+    if (!obj) return;
+    if (ClasyncFunc.anyInstanceOf(obj, ClasyncFunc.iterableTypes)) return obj.keys().next();
+    if (obj[Symbol.iterator]) return obj[Symbol.iterator]().next().value;
     for (const key in obj) return key;
   },
 
   firstValue(obj) {
+    if (!obj) return;
+    if (ClasyncFunc.anyInstanceOf(obj, ClasyncFunc.iterableTypes)) return obj.values().next();
+    if (obj[Symbol.iterator]) return obj[Symbol.iterator]().next().value;
     for (const key in obj) return obj[key];
   },
 
   firstEntry(obj) {
+    if (!obj) return;
+    if (ClasyncFunc.anyInstanceOf(obj, ClasyncFunc.iterableTypes)) return obj.entries().next();
+    if (obj[Symbol.iterator]) return obj[Symbol.iterator]().next().value;
     for (const key in obj) return [key, obj[key]];
     return [];
   },
@@ -357,48 +454,92 @@ ClasyncFunc = {
   },
 
   maps(array, func) {
-    for (let i = 0; i < array.length; i++) {
-      const value = func.call(array, array[i], i, array);
-      array[i] = value;
+    if (typeof func === 'function') {
+      for (let i = 0; i < array.length; i++) {
+        const value = func.call(array, array[i], i, array);
+        array[i] = value;
+      }
+    } else {
+      for (let i = 0; i < array.length; i++) {
+        const value = func[array[i]];
+        array[i] = value;
+      }
     }
 
     return array;
   },
 
   mapKeys(obj, func) {
-    const result = ClasyncFunc.make(Object.entries(obj).map(([k, v]) => {
-      const key = func.call(obj, k, v, obj);
-      const result = ({[key]: v});
-      return result;
-    }));
+    const mapFunc = (
+      typeof func === 'function' ?
 
+      ([k, v]) => {
+        const key = func.call(obj, k, v, obj);
+        const result = ({[key]: v});
+        return result;
+      } :
+
+      ([k, v]) => {
+        const key = func[k];
+        const result = ({[key]: v});
+        return result;
+      }
+    );
+
+    const result = ClasyncFunc.make(Object.entries(obj).map(mapFunc));
     return result;
   },
 
   mapValues(obj, func) {
-    const result = ClasyncFunc.make(Object.entries(obj).map(([k, v]) => {
-      const value = func.call(obj, k, v, obj);
-      const result = ({[k]: value});
-      return result;
-    }));
+    const mapFunc = (
+      typeof func === 'function' ?
 
+      ([k, v]) => {
+        const value = func[v];
+        const result = ({[k]: value});
+        return result;
+      } :
+
+      ([k, v]) => {
+        const value = func.call(obj, k, v, obj);
+        const result = ({[k]: value});
+        return result;
+      }
+    );
+
+    const result = ClasyncFunc.make(Object.entries(obj).map(mapFunc));
     return result;
   },
 
   mapsKeys(obj, func) {
-    for (const [k, v] of Object.entries(obj)) {
-      const key = func.call(obj, k, v, obj);
-      delete obj[k];
-      obj[key] = v;
+    if (typeof func === 'function') {
+      for (const [k, v] of Object.entries(obj)) {
+        const key = func.call(obj, k, v, obj);
+        delete obj[k];
+        obj[key] = v;
+      }
+    } else {
+      for (const [k, v] of Object.entries(obj)) {
+        const key = func[k];
+        delete obj[k];
+        obj[key] = v;
+      }
     }
 
     return obj;
   },
 
   mapsValues(obj, func) {
-    for (const [k, v] of Object.entries(obj)) {
-      const value = func.call(obj, k, v, obj);
-      obj[k] = value;
+    if (typeof func === 'function') {
+      for (const [k, v] of Object.entries(obj)) {
+        const value = func.call(obj, k, v, obj);
+        obj[k] = value;
+      }
+    } else {
+      for (const [k, v] of Object.entries(obj)) {
+        const value = func[v];
+        obj[k] = value;
+      }
     }
 
     return obj;
@@ -526,9 +667,25 @@ ClasyncFunc = {
     return r;
   },
 
+  merge(to, ...objs) {
+    return objs.reduce((a, b) => ClasyncFunc.setTree(b, a), to);
+  },
+
+  mergeDeep(to, ...objs) {
+    return objs.reduce((a, b) => ClasyncFunc.setTree(b, a, {deep: true}), to);
+  },
+
+  unmerge(to, ...objs) {
+    return objs.reduce((a, b) => ClasyncFunc.setTree(b, a, {unset: true}), to);
+  },
+
+  unmergeDeep(to, ...objs) {
+    return objs.reduce((a, b) => ClasyncFunc.setTree(b, a, {unset: true, deep: true}), to);
+  },
+
   zipArray(...collate) {
     const result = [];
-    const count = collate.map(array => array.length).reduce((a, b) => a > b ? a : b);
+    const count = collate.map(array => array.length).reduce(ClasyncFunc.max);
     for (let i = 0; i < count; i++) result.push.call(result, ...collate.map(array => array[i]));
     return result;
   },

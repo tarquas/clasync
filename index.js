@@ -3,9 +3,9 @@ const ClasyncPromise = require('./static/promise');
 const ClasyncMain = require('./static/main');
 const ClasyncFunc = require('./static/func');
 
-class Clasync extends ClasyncBase {
-  static get $() { return this; }
+const bound$ = Symbol('bound$');
 
+class Clasync extends ClasyncBase {
   static get Db() { return require('./db'); }
   static get Mq() { return require('./mq'); }
   static get Pay() { return require('./pay'); }
@@ -16,6 +16,15 @@ class Clasync extends ClasyncBase {
   static get Cache() { return require('./cache'); }
   static get Crypt() { return require('./crypt'); }
   static get Emitter() { return require('./emitter'); }
+
+  static get $() {
+    if (!this[bound$]) {
+      bind$(this, this);
+      Object.defineProperty(this, bound$, {enumerable: false, value: true});
+    }
+
+    return this;
+  }
 
   static async setMainInstance(inst) {
     Clasync.mainInstance = inst;
@@ -147,13 +156,15 @@ async function ClasyncCtor(t, $$) {
     inst.waitFinaled = new Promise((resolve) => { inst.setFinaled = resolve; });
     if (!$$) inst.$$ = t;
 
+    bind$(t, Object.getPrototypeOf(t));
+
     Object.defineProperties(t, {
       [Clasync.instance]: {value: inst},
       $$: {value: inst.$$},
       $: {value: t.constructor}
     });
 
-    await t.$.tick();
+    await t.$.$.tick();
 
     for (let o = t; o.init; o = Object.getPrototypeOf(o)) {
       if (o.init !== inits[0]) inits.unshift(o.init);
@@ -205,5 +216,17 @@ Clasync.App = class App extends Clasync.Emitter {
   static get type() { return 'app'; }
   static configure() { return {}; }
 };
+
+Clasync.rxSelfBind = /^([^]+)\$$/;
+
+function bind$(obj, inst) {
+  for (const name of Object.getOwnPropertyNames(inst)) {
+    const ents = name.match(Clasync.rxSelfBind);
+    if (!ents) continue;
+    const func = inst[name];
+    if (typeof func !== 'function') continue;
+    inst[ents[1]] = func.bind(obj);
+  }
+}
 
 Clasync.autorun(require.main).catch(err => Clasync.logFatal(err));

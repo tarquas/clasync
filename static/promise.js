@@ -233,7 +233,12 @@ const ClasyncPromise = {
   timeThrottle(obj, time, callback) {
     if (!callback) { callback = time; time = null; }
     const cur = ClasyncPromise.throttleMap.get(callback);
-    const acc = cur ? cur.acc : obj instanceof Array ? [] : Object.create(null);
+
+    const acc = (
+      cur ? cur.acc :
+      obj instanceof Array ? [] : Object.create(null)
+    );
+
     this.$.accumulate(acc, obj);
 
     if (cur) {
@@ -241,7 +246,11 @@ const ClasyncPromise = {
       return cur.finaled;
     }
 
-    const newCur = {acc, time: time || this.$.timeThrottleDefault || 1000};
+    const newCur = {
+      acc,
+      time: time != null ? time : this.$.timeThrottleDefault || 1000
+    };
+
     ClasyncPromise.throttleMap.set(callback, newCur);
     return ClasyncPromise.timeThrottleTimeout(callback);
   },
@@ -254,9 +263,13 @@ const ClasyncPromise = {
       cur.acc = acc instanceof Array ? [] : Object.create(null);
 
       try {
+        delete cur.result;
+        delete cur.error;
         const res = await callback(acc);
+        cur.result = res;
         if (cur.ok) cur.ok(res); else return res;
       } catch (err) {
+        cur.error = err;
         if (cur.nok) cur.nok(err); else throw err;
       } finally {
         cur.finaled = new Promise((ok, nok) => {
@@ -264,7 +277,11 @@ const ClasyncPromise = {
           cur.nok = nok;
         });
 
-        setTimeout(ClasyncPromise.timeThrottleTimeout, time, callback);
+        if (time) {
+          setTimeout(ClasyncPromise.timeThrottleTimeout, time, callback);
+        } else {
+          setImmediate(ClasyncPromise.timeThrottleTimeout, callback);
+        }
       }
 
       return;
@@ -276,6 +293,15 @@ const ClasyncPromise = {
 
   throttleMap: new WeakMap(),
   timeThrottleDefault: 1000,
+
+  timeThrottleCached(obj, time, callback) {
+    if (!callback) { callback = time; time = null; }
+    const pending = this.$.throttleMap.get(callback);
+    const promise = this.$.timeThrottle(obj, time, callback);
+    if (!pending) return promise;
+    if (pending.error) throw pending.error;
+    return pending.result;
+  },
 
   callOnce(fn) {
     const map = ClasyncPromise.callOnceMap;
