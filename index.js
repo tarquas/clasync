@@ -3,8 +3,6 @@ const ClasyncPromise = require('./static/promise');
 const ClasyncMain = require('./static/main');
 const ClasyncFunc = require('./static/func');
 
-const bound$ = Symbol('bound$');
-
 class Clasync extends ClasyncBase {
   static get Db() { return require('./db'); }
   static get Mq() { return require('./mq'); }
@@ -18,9 +16,9 @@ class Clasync extends ClasyncBase {
   static get Emitter() { return require('./emitter'); }
 
   static get $() {
-    if (!this[bound$]) {
+    if (!Clasync.staticSelfBound.has(this)) {
       bind$(this, this);
-      Object.defineProperty(this, bound$, {enumerable: false, value: true});
+      Clasync.staticSelfBound.set(this, true);
     }
 
     return this;
@@ -218,6 +216,8 @@ Clasync.App = class App extends Clasync.Emitter {
 };
 
 Clasync.rxSelfBind = /^([^]+)\$$/;
+
+Clasync.staticSelfBound = new WeakMap();
 
 function bind$(obj, inst) {
   for (const name of Object.getOwnPropertyNames(inst)) {

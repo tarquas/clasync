@@ -453,15 +453,36 @@ ClasyncFunc = {
     return groups;
   },
 
+  map(obj, func, val) {
+    const mapFunc = (
+      func == null ?
+      (val ? ([k, v]) => v : ([k, v]) => k) :
+      typeof func === 'function' ?
+      (val ? ([k, v]) => func.call(obj, v, k, obj) :
+        ([k, v]) => func.call(obj, k, v, obj)) :
+      typeof func === 'object' ?
+      (val ? ([k, v]) => func[v] : ([k, v]) => func[k]) :
+      (val ? ([k, v]) => func + v : ([k, v]) => func + k)
+    );
+
+    const result = Object.entries(obj).map(mapFunc);
+    return result;
+  },
+
   maps(array, func) {
     if (typeof func === 'function') {
       for (let i = 0; i < array.length; i++) {
         const value = func.call(array, array[i], i, array);
         array[i] = value;
       }
-    } else {
+    } else if (typeof func === 'object') {
       for (let i = 0; i < array.length; i++) {
         const value = func[array[i]];
+        array[i] = value;
+      }
+    } else {
+      for (let i = 0; i < array.length; i++) {
+        const value = func + array[i];
         array[i] = value;
       }
     }
@@ -469,76 +490,119 @@ ClasyncFunc = {
     return array;
   },
 
-  mapKeys(obj, func) {
+  mapKeys(obj, func, inv) {
     const mapFunc = (
+      func == null ?
+      (inv ? ([k, v]) => ({[v]: func}) : ([k, v]) => ({[v]: v})) :
       typeof func === 'function' ?
-
-      ([k, v]) => {
-        const key = func.call(obj, k, v, obj);
-        const result = ({[key]: v});
-        return result;
-      } :
-
-      ([k, v]) => {
-        const key = func[k];
-        const result = ({[key]: v});
-        return result;
-      }
+      (inv ? ([k, v]) => ({[func.call(obj, k, v, obj)]: k}) :
+        ([k, v]) => ({[func.call(obj, k, v, obj)]: v})) :
+      typeof func === 'object' ?
+      (inv ? ([k, v]) => ({[func[v]]: v}) : ([k, v]) => ({[func[k]]: v})) :
+      (inv ? ([k, v]) => ({[v]: func}) : ([k, v]) => ({[func + k]: v}))
     );
 
     const result = ClasyncFunc.make(Object.entries(obj).map(mapFunc));
     return result;
   },
 
-  mapValues(obj, func) {
+  mapValues(obj, func, inv) {
     const mapFunc = (
+      func == null ?
+      (inv ? ([k, v]) => ({[k]: k}) : ([k, v]) => ({[k]: func})) :
       typeof func === 'function' ?
-
-      ([k, v]) => {
-        const value = func.call(obj, k, v, obj);
-        const result = ({[k]: value});
-        return result;
-      } :
-
-      ([k, v]) => {
-        const value = func[v];
-        const result = ({[k]: value});
-        return result;
-      }
+      (inv ? ([k, v]) => ({[v]: func.call(obj, k, v, obj)}) :
+        ([k, v]) => ({[k]: func.call(obj, k, v, obj)})) :
+      typeof func === 'object' ?
+      (inv ? ([k, v]) => ({[k]: func[v]}) : ([k, v]) => ({[k]: func[k]})) :
+      (inv ? ([k, v]) => ({[k]: func + v}) : ([k, v]) => ({[k]: func}))
     );
 
     const result = ClasyncFunc.make(Object.entries(obj).map(mapFunc));
     return result;
   },
 
-  mapsKeys(obj, func) {
+  mapsKeys(obj, func, inv) {
     if (typeof func === 'function') {
-      for (const [k, v] of Object.entries(obj)) {
-        const key = func.call(obj, k, v, obj);
-        delete obj[k];
-        obj[key] = v;
+      if (inv) {
+        for (const [k, v] of Object.entries(obj)) {
+          const key = func.call(obj, v, k, obj);
+          delete obj[k];
+          obj[key] = k;
+        }
+      } else {
+        for (const [k, v] of Object.entries(obj)) {
+          const key = func.call(obj, k, v, obj);
+          delete obj[k];
+          obj[key] = v;
+        }
+      }
+    } else if (typeof func === 'object') {
+      if (inv) {
+        for (const [k, v] of Object.entries(obj)) {
+          const key = func[v];
+          delete obj[k];
+          obj[key] = v;
+        }
+      } else {
+        for (const [k, v] of Object.entries(obj)) {
+          const key = func[k];
+          delete obj[k];
+          obj[key] = v;
+        }
       }
     } else {
-      for (const [k, v] of Object.entries(obj)) {
-        const key = func[k];
-        delete obj[k];
-        obj[key] = v;
+      if (inv) {
+        for (const [k, v] of Object.entries(obj)) {
+          delete obj[k];
+          obj[v] = func;
+        }
+      } else {
+        for (const [k, v] of Object.entries(obj)) {
+          delete obj[k];
+          obj[func + k] = v;
+        }
       }
     }
 
     return obj;
   },
 
-  mapsValues(obj, func) {
+  mapsValues(obj, func, inv) {
     if (typeof func === 'function') {
-      for (const [k, v] of Object.entries(obj)) {
-        const value = func.call(obj, k, v, obj);
-        obj[k] = value;
+      if (inv) {
+        for (const [k, v] of Object.entries(obj)) {
+          const value = func.call(obj, k, v, obj);
+          delete obj[k];
+          obj[v] = value;
+        }
+      } else {
+        for (const [k, v] of Object.entries(obj)) {
+          const value = func.call(obj, k, v, obj);
+          obj[k] = value;
+        }
+      }
+    } else if (typeof func === 'object') {
+      if (inv) {
+        for (const [k, v] of Object.entries(obj)) {
+          const value = func[v];
+          obj[k] = value;
+        }
+      } else {
+        for (const [k, v] of Object.entries(obj)) {
+          const value = func[k];
+          obj[k] = value;
+        }
       }
     } else {
-      for (const [k, v] of Object.entries(obj)) {
-        const value = func[v];
-        obj[k] = value;
+      if (inv) {
+        for (const [k, v] of Object.entries(obj)) {
+          obj[k] = func + v;
+        }
+      } else {
+        for (const [k, v] of Object.entries(obj)) {
+          obj[k] = func;
+        }
       }
     }
 
@@ -623,9 +687,16 @@ ClasyncFunc = {
     const res = [];
     let i = 0;
 
-    while (i < arr.length) {
-      if (func.call(this, arr[i], i, arr)) res.push(...arr.splice(i, 1));
-      else i++;
+    if (typeof func === 'function') {
+      while (i < arr.length) {
+        if (func.call(this, arr[i], i, arr)) res.push(...arr.splice(i, 1));
+        else i++;
+      }
+    } else {
+      while (i < arr.length) {
+        if (func == arr[i]) res.push(...arr.splice(i, 1));
+        else i++;
+      }
     }
 
     return res;
