@@ -376,7 +376,7 @@ const ClasyncFunc = {
   objectOrUndefined: {object: 1, undefined: 1},
 
   uniqKeys(what, def) {
-    const keys = this.make(what.map(i => (
+    const keys = this.make(this.mapIter(what, i => (
       i instanceof Array ? this.make(i.map(j => ({[j]: def}))) :
       typeof i in this.objectOrUndefined ? i : ({[i]: def})
     )));
@@ -443,7 +443,7 @@ const ClasyncFunc = {
     if (obj instanceof Set) return new Set(obj);
 
     if (typeof obj === 'object') return this.make(
-      this.map(obj, (k, v) => ({[k]: this.cloneDeep(v)}))
+      this.mapIter(this.entries(obj), ([k, v]) => ({[k]: this.cloneDeep(v)}))
     );
 
     return obj;
@@ -500,7 +500,7 @@ const ClasyncFunc = {
   },
 
   groupBy(array, func) {
-    const groups = array.map(typeof func === 'function' ? func : item => item[func]);
+    const groups = Array.from(this.mapIter(array, func));
     const result = this.inverts(groups, array);
     return result;
   },
@@ -544,9 +544,9 @@ const ClasyncFunc = {
   },
 
   inverts(obj, map) {
-    const ents = Object.entries(obj);
+    const ents = Array.from(this.entries(obj));
 
-    const groups = this.make(ents.map(
+    const groups = this.make(this.mapIter(ents,
       ([k, v]) => v instanceof Array ? this.invert(v) : ({[v]: true})
     ));
 
@@ -578,7 +578,7 @@ const ClasyncFunc = {
       }
     } else {
       for (const item of iter) {
-        yield func[item];
+        yield item[func];
       }
     }
   },
@@ -642,7 +642,7 @@ const ClasyncFunc = {
       (inv ? ([k, v]) => ({[v]: func}) : ([k, v]) => ({[func + k]: v}))
     );
 
-    const result = this.make(Object.entries(obj).map(mapFunc));
+    const result = this.make(this.mapIter(this.entries(obj), mapFunc));
     return result;
   },
 
@@ -658,7 +658,7 @@ const ClasyncFunc = {
       (inv ? ([k, v]) => ({[k]: func + v}) : ([k, v]) => ({[k]: func}))
     );
 
-    const result = this.make(Object.entries(obj).map(mapFunc));
+    const result = this.make(this.mapIter(this.entries(obj), mapFunc));
     return result;
   },
 
@@ -752,7 +752,7 @@ const ClasyncFunc = {
   omit(from, ...what) {
     const keys = this.uniqKeys(what);
 
-    const result = this.make(Object.entries(from).map(([k, v]) => (
+    const result = this.make(this.mapIter(this.entries(from), ([k, v]) => (
       k in keys ? null : ({[k]: v})
     )));
 
@@ -788,7 +788,7 @@ const ClasyncFunc = {
   pick(from, ...what) {
     const keys = this.uniqKeys(what);
 
-    const result = this.make(Object.keys(keys).map(key => (
+    const result = this.make(this.mapIter(this.keys(keys), (key) => (
       key in from ? ({[key]: from[key]}) : null
     )));
 
@@ -797,9 +797,13 @@ const ClasyncFunc = {
 
   pickBy(from, func) {
     const result = this.make(
-      Object.entries(from)
-      .filter(([k, v]) => func.call(from, k, v, from))
-      .map(([k, v]) => ({[k]: v}))
+      this.mapIter(
+        this.filter(
+          this.entries(from),
+          ([k, v]) => func.call(from, k, v, from)
+        ),
+        ([k, v]) => ({[k]: v})
+      )
     );
 
     return result;
@@ -821,6 +825,22 @@ const ClasyncFunc = {
     let value = from - inc;
     const result = this.maps(Array(count), () => (value += inc));
     return result;
+  },
+
+  *filter(iter, func) {
+    if (func == null) {
+      for (const item of iter) {
+        if (item) yield item;
+      }
+    } else if (typeof func == 'function') {
+      for (const item of iter) {
+        if (func.call(this, item)) yield item;
+      }
+    } else {
+      for (const item of iter) {
+        if (item[func]) yield item;
+      }
+    }
   },
 
   remove(arr, func) {
@@ -906,7 +926,7 @@ const ClasyncFunc = {
   },
 
   zipObject(keys, values) {
-    const result = this.make(keys.map((key, i) => ({[key]: values[i]})));
+    const result = this.make(this.mapIter(this.entries(keys), ([key, i]) => ({[key]: values[i]})));
     return result;
   }
 };
