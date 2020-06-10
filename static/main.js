@@ -3,21 +3,29 @@ const ClasyncMain = {
     process.stdin.resume();
   },
 
-  async exit(reason, isSignal) {
+  exit(reason, isSignal) {
     if (isSignal) {
       if (this.signalExiting) return process.exit(reason);
       this.signalExiting = true;
     }
 
-    if (this.exiting) return;
-    this.exiting = true;
+    if (this.exiting) return this.exiting;
 
     const main = this.mainInstance;
     if (!main) return process.exit(reason);
     const inst = this.get(main, this.instance);
     this.finish(main, reason);
-    await this.delay(this.gracefulShutdownMsec);
-    if (!inst.finaled) this.throw('Timed out waiting for finalizers', {title: 'CRITICAL', exit: 2});
+
+    this.exiting = (async () => {
+      await this.delay(this.gracefulShutdownMsec);
+
+      if (!inst.finaled) {
+        this.throw('Timed out waiting for finalizers', {title: 'CRITICAL'});
+        process.exit(2);
+      }
+    })();
+
+    return this.exiting;
   },
 
   async fail(from, err) {

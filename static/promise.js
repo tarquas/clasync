@@ -18,7 +18,7 @@ const ClasyncPromise = {
 
   bindOnce(to, obj, method, ...rest) {
     const func = typeof method === 'function' ? method : obj[method];
-    let funcBinds = ClasyncPromise.boundOnce.get(func);
+    let funcBinds = this.boundOnce.get(func);
     let result, map;
     const byRef = to && typeof to === 'object';
 
@@ -26,7 +26,7 @@ const ClasyncPromise = {
       funcBinds = Object.create(null);
       funcBinds.val = new Map();
       funcBinds.ref = new WeakMap();
-      ClasyncPromise.boundOnce.set(func, funcBinds);
+      this.boundOnce.set(func, funcBinds);
       result = false;
     }
 
@@ -232,7 +232,7 @@ const ClasyncPromise = {
 
   timeThrottle(obj, time, callback) {
     if (!callback) { callback = time; time = null; }
-    const cur = ClasyncPromise.throttleMap.get(callback);
+    const cur = this.throttleMap.get(callback);
 
     const acc = (
       cur ? cur.acc :
@@ -251,12 +251,12 @@ const ClasyncPromise = {
       time: time != null ? time : this.$.timeThrottleDefault || 1000
     };
 
-    ClasyncPromise.throttleMap.set(callback, newCur);
-    return ClasyncPromise.timeThrottleTimeout(callback);
+    this.throttleMap.set(callback, newCur);
+    return this.timeThrottleTimeout(callback);
   },
 
-  async timeThrottleTimeout(callback) {
-    const cur = ClasyncPromise.throttleMap.get(callback);
+  async timeThrottleTimeout$(callback) {
+    const cur = this.throttleMap.get(callback);
     const {acc, time} = cur;
 
     for (const key in acc) {
@@ -278,16 +278,16 @@ const ClasyncPromise = {
         });
 
         if (time) {
-          setTimeout(ClasyncPromise.timeThrottleTimeout, time, callback);
+          setTimeout(this.timeThrottleTimeout, time, callback);
         } else {
-          setImmediate(ClasyncPromise.timeThrottleTimeout, callback);
+          setImmediate(this.timeThrottleTimeout, callback);
         }
       }
 
       return;
     }
 
-    ClasyncPromise.throttleMap.delete(callback);
+    this.throttleMap.delete(callback);
     if (cur.ok) cur.ok(null); else return null;
   },
 
@@ -304,7 +304,7 @@ const ClasyncPromise = {
   },
 
   callOnce(fn) {
-    const map = ClasyncPromise.callOnceMap;
+    const map = this.callOnceMap;
     if (map.has(fn)) return map.get(fn).promise;
 
     const promise = (async () => {
@@ -323,7 +323,7 @@ const ClasyncPromise = {
   callOnceMap: new WeakMap(),
 
   IoC(config, hub) {
-    const {IoCs} = ClasyncPromise;
+    const {IoCs} = this;
     if (IoCs.has(config)) return IoCs.get(config);
     const inst = new this(config, hub);
     IoCs.set(config, inst);
@@ -333,8 +333,8 @@ const ClasyncPromise = {
   IoCs: new WeakMap(),
 
   raceMap: new Map(),
-  promiseValue: Symbol('ClasyncPromise.promiseValue'),
-  promiseIsError: Symbol('ClasyncPromise.promiseIsError')
+  promiseValue: Symbol('Clasync.promiseValue'),
+  promiseIsError: Symbol('Clasync.promiseIsError')
 }
 
 module.exports = ClasyncPromise;

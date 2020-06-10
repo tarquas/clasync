@@ -208,15 +208,7 @@ Clasync.debugMode = process.env.DEBUG;
 Clasync.debugTopics = (Clasync.debugMode || '').toString().match(Clasync.rxNestIds) || [];
 Clasync.debugIndex = Clasync.invert(Clasync.debugTopics);
 
-module.exports = Clasync;
-
-Clasync.App = class App extends Clasync.Emitter {
-  static get type() { return 'app'; }
-  static configure() { return {}; }
-};
-
 Clasync.rxSelfBind = /^([^]+)\$$/;
-
 Clasync.staticSelfBound = new WeakMap();
 
 function bind$(obj, inst) {
@@ -228,5 +220,12 @@ function bind$(obj, inst) {
     inst[ents[1]] = func.bind(obj);
   }
 }
+
+module.exports = Clasync.$;
+
+Clasync.App = class App extends Clasync.Emitter {
+  static get type() { return 'app'; }
+  static configure() { return {}; }
+};
 
 Clasync.autorun(require.main).catch(err => Clasync.logFatal(err));
