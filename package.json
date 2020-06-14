@@ -1,6 +1,6 @@
 {
   "name": "clasync",
-  "version": "0.9.6",
+  "version": "0.9.9",
   "description": "[Node.js] CLASses ASYNChronous",
   "main": "index.js",
   "scripts": {

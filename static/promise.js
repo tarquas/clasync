@@ -86,7 +86,8 @@ const ClasyncPromise = {
   },
 
   async wrapNamed(promises, aggr, single) {
-    if (promises instanceof Array) return await aggr(promises);
+    if (this.iteratorObj(promises)) return await aggr(promises);
+    // TODO: iter
     const names = Object.keys(promises);
     const arr = Object.values(promises);
     const results = await aggr(arr);
@@ -121,7 +122,9 @@ const ClasyncPromise = {
   },
 
   raceArray(promises) {
-    for (const promise of promises) {
+    const [p1, p2] = this.forkIter(promises, 2);
+
+    for (const promise of p1) {
       if (!(promise instanceof Promise)) return Promise.resolve(promise);
 
       if (this.promiseIsError in promise) {
@@ -131,7 +134,7 @@ const ClasyncPromise = {
       }
     }
 
-    return this.racePending(promises);
+    return this.racePending(p2);
   },
 
   racePending(promises) {
@@ -174,6 +177,7 @@ const ClasyncPromise = {
   },
 
   async raceChunkArray(promises, size) {
+    if (!(promises instanceof Array)) promises = Array.from(promses);
     if (!size || !promises.length) return [];
     const results = Array(promises.length);
     const indexed = promises.slice(0, size).map((p, i) => this.promiseIndexMap(p, i, i));

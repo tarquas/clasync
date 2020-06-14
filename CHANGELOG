@@ -256,7 +256,7 @@ Functional (static/func.js):
 Promise utilities (static/promise.js):
 - Add `$.IoC()`.
 
-*** Version 0.9.6 - 2020-06-10
+*** Version 0.9.9 - 2020-06-10
 
 Functional (static/func.js):
 - Add `$.append()`;
@@ -274,3 +274,27 @@ Promise utilities (static/promise.js):
 
 Main module (index.js):
 - Add self autobound functions (declared with suffix '$').
+
+*** Version 0.9.9 - 2020-06-12
+
+Functional (static/func.js):
+- Optimizations for big data with iterators and streams;
+- Add `$.echoAsync`, `$.nullAsync`, `$.boundAsync`;
+- Add `$.keys()`, `$.values()`, `$.entries()`, `$.keysValues()`;
+- Add `$.flattenIter()`, `$.flattenAsync()`, `$.flattenDeepIter()`, `$.flattenDeepAsync()`;
+- Add `$.makeAsync()`, `$.extendAsync()`, `$.defaultsAsync()`;
+- Add `$.chunkIter()`, `$.chunkAsync()`;
+- Add `$.partialIter()`, `$.partialAsync()`, `$.chunkIterIter()`, `$.chunkAsyncAsync()`;
+- Add `$.mapIter()`, `$.mapAsync()`, `$.mapMultiIter()`, `$.mapMultiAsync()`;
+- Add `$.filterIter()`, `$.filterAsync()`;
+- Add `$.array()`, `$.arrayAsync()`;
+- Add `$.sliceIter()`, `$.sliceAsync()`;
+- Add `$.last()`, `$.lastAsync`, `$.cutLastIter()`, `$.cutLastAsync()`;
+- Add `$.sliceRightIter()`, `$.sliceRightAsync()`;
+- Add `$.forkIter()`, `$.forkAsync()`;
+- Add `$.iterator()`, `$.iteratorAsync()`, `$.iteratorObj()`, `$.iteratorObjAsync()`;
+- Add `$.array()`, `$.arrayAsync()`;
+- Add `$.zipIter()`, `$.zipAsync()`, `$.collateIter()`, `$.collateAsync()`;
+- Add `$.feedAsync()`;
+- Add `$.nsecAsync()`;
+- Add `$.execIter()`, `$.execAsync()`.
