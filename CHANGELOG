@@ -275,7 +275,7 @@ Promise utilities (static/promise.js):
 Main module (index.js):
 - Add self autobound functions (declared with suffix '$').
 
-*** Version 0.9.9 - 2020-06-12
+*** Version 0.9.10 - 2020-06-15
 
 Functional (static/func.js):
 - Optimizations for big data with iterators and streams;

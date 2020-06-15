@@ -834,9 +834,8 @@ module.exports = {
 
   flattenDeep(array) {
     if (!this.iteratorObj(array)) return array;
-    if (array.flat) return array.flat();
     const result = [];
-    for (const sub of array) this.append(result, sub.map(this.flattenDeep));
+    for (const sub of array) this.append(result, this.flattenDeep(sub));
     return result;
   },
 

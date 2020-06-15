@@ -2,7 +2,7 @@
 # clasync
 **[Node.js]** *CL*ASses AS*YNC*hronous
 *Your powerful asynchronous imperative code OOP framework.*
-Latest version: 0.9.9
+Latest version: 0.9.10
 
 `npm i -S clasync`
 
