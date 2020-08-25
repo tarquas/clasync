@@ -298,3 +298,11 @@ Functional (static/func.js):
 - Add `$.feedAsync()`;
 - Add `$.nsecAsync()`;
 - Add `$.execIter()`, `$.execAsync()`.
+
+*** Version 0.9.11 - 2020-08-25
+
+Main module (index.js):
+- Static hub binding: `this.$dep.$ === this.$.$dep`.
+
+MQ Mongo-based (mq/mongo/):
+- Add index by `queue, topic`.

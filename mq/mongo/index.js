@@ -28,7 +28,8 @@ class MqMongoModel extends DbMongoModel {
     })
       .index({queue: 1, priority: 1, date: 1})
       .index({queue: 1, curDate: 1})
-      .index({date: 1});
+      .index({date: 1})
+      .index({queue: 1, topic: 1});
   }
 }
 
@@ -194,7 +195,7 @@ class MqMongo extends Clasync.Emitter {
   async extend(id, nowDate) {
     const now = +(nowDate || new Date());
 
-    await this.model.update(
+    await this.model.updateOne(
       {_id: id},
       {$set: {expires: new Date(now + this.visibilityMsec)}}
     ).exec();
@@ -203,7 +204,7 @@ class MqMongo extends Clasync.Emitter {
   async hide(id, nowDate) {
     const now = +(nowDate || new Date());
 
-    await this.model.update(
+    await this.model.updateOne(
       {_id: id},
       {$set: {date: new Date(now + this.visibilityMsec)}}
     ).exec();

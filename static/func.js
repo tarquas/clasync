@@ -1794,7 +1794,7 @@ module.exports = {
   },
 
   zipObject(keys, values) {
-    const result = this.make(this.mapIter(this.entries(keys), ([key, i]) => ({[key]: values[i]})));
+    const result = this.make(this.mapIter(this.entries(keys), ([i, key]) => ({[key]: values[i]})));
     return result;
   }
 };

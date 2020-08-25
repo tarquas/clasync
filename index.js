@@ -45,6 +45,7 @@ class Clasync extends ClasyncBase {
       const parent = type ? {[type]: this} : {};
       const subConfig = {...parent, ...config};
       const newInst = this[k] = new Class(subConfig, inst.$$);
+      this.$[k] = Class;
       await newInst[Clasync.ready];
       return;
     }
@@ -56,7 +57,11 @@ class Clasync extends ClasyncBase {
     }
 
     this[k] = v;
-    await v[Clasync.ready];
+
+    if (v instanceof Clasync) {
+      this.$[k] = v.$;
+      await v[Clasync.ready];
+    }
   }
 
   static async subSetOne(sub) {
