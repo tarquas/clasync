@@ -669,7 +669,11 @@ class MqMongo extends Clasync.Emitter {
         let coll = this.pubsubColl;
 
         if (!coll) {
-          coll = await util.promisify(db.createCollection).call(
+          try {
+            coll = await util.promisify(db.collection).call(db, this.pubsubName, {strict: true});
+          } catch (err) { }
+
+          if (!coll) coll = await util.promisify(db.createCollection).call(
             db,
             this.pubsubName,
 
