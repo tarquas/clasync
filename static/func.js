@@ -749,7 +749,7 @@ module.exports = {
   cloneDeep(obj) {
     if (!obj) return obj;
     if (obj instanceof Date) return new Date(obj);
-    if (obj instanceof Array) return obj.map(this.cloneDeep);
+    if (obj instanceof Array) return obj.map(obj => this.cloneDeep(obj));
     if (obj instanceof Map) return new Map(obj);
     if (obj instanceof Set) return new Set(obj);
 

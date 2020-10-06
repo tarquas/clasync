@@ -299,7 +299,7 @@ Functional (static/func.js):
 - Add `$.nsecAsync()`;
 - Add `$.execIter()`, `$.execAsync()`.
 
-*** Version 0.9.12 - 2020-09-08
+*** Version 0.9.13 - 2020-10-06
 
 Main module (index.js):
 - Static hub binding: `this.$dep.$ === this.$.$dep`.
