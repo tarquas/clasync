@@ -306,3 +306,11 @@ Main module (index.js):
 
 MQ Mongo-based (mq/mongo/):
 - Add index by `queue, topic`.
+
+*** Version 0.9.14 - 2020-10-24
+
+Packages (package.json)
+- Update all to latest versions.
+
+Functional (static/func.js):
+- Add `limit` arg to `$.forkIter()` and `$.forkAsync()`.

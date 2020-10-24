@@ -285,6 +285,10 @@ module.exports = {
         return `[${this.$.getDef(v, 'constructor', 'name', '<null>')}]`;
       }
 
+      if (v instanceof RegExp) {
+        return `[RegExp: ${JSON.stringify(v.source)} ${v.flags}]`;
+      }
+
       return v;
     });
 
@@ -846,7 +850,7 @@ module.exports = {
   },
 
   *forkOne(from, arg, i) {
-    const {buf, idxs} = arg;
+    const {buf, idxs, limit} = arg;
     let value, done;
 
     try {
@@ -857,7 +861,8 @@ module.exports = {
           if (arg.done) return;
           ({value, done} = from.next());
           if (done) { arg.done = true; return; }
-          buf.push(value);
+          const length = buf.push(value);
+          if (limit && length > limit) throw new Error('limitExceeded');
         } else {
           value = buf[c];
         }
@@ -888,7 +893,7 @@ module.exports = {
     }
   },
 
-  forkIter(from, count) {
+  forkIter(from, count, limit) {
     const iters = Array(count);
     const iter = this.iteratorObj(from, true);
 
@@ -899,6 +904,7 @@ module.exports = {
 
     const arg = {
       buf: [],
+      limit,
       idxs: Array(count),
       pend: count
     };
@@ -912,7 +918,7 @@ module.exports = {
   },
 
   async *forkOneAsync(from, arg, i) {
-    const {buf, idxs} = arg;
+    const {buf, idxs, limit} = arg;
     let value, done;
 
     try {
@@ -923,7 +929,8 @@ module.exports = {
           if (arg.done) return;
           ({value, done} = await from.next());
           if (done) { arg.done = true; return; }
-          buf.push(value);
+          const length = buf.push(value);
+          if (limit && length > limit) throw new Error('limitExceeded');
         } else {
           value = buf[c];
         }
@@ -954,7 +961,7 @@ module.exports = {
     }
   },
 
-  forkAsync(from, count) {
+  forkAsync(from, count, limit) {
     const iters = Array(count);
     const iter = this.iteratorObjAsync(from, true);
 
@@ -965,6 +972,7 @@ module.exports = {
 
     const arg = {
       buf: [],
+      limit,
       idxs: Array(count),
       pend: count
     };
