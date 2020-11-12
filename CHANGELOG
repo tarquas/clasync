@@ -314,3 +314,13 @@ Packages (package.json)
 
 Functional (static/func.js):
 - Add `limit` arg to `$.forkIter()` and `$.forkAsync()`.
+
+*** Version 0.9.15 - 2020-11-12
+
+Dependencies (package.json):
+- Update module versions, except socket.io.
+
+Functional (static/func.js):
+- Add `$.stretch()`, `$.stretchIter()`, `$.stretchAsync()`;
+- Add nullable result support to mapping function of `$.mapMultiIter()` and `$.mapMultiAsync()`;
+- Add `$.repeatIter()`, `$.repeatAsync()`.

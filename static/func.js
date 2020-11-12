@@ -1176,11 +1176,13 @@ module.exports = {
 
       for (const item of iter) {
         const res = func.call(this, item, idx++, iter);
+        if (res == null) continue;
         if (this.iteratorObj(res)) yield* res; else yield res;
       }
     } else {
       for (const item of iter) {
         const res = item[func];
+        if (res == null) continue;
         if (this.iteratorObj(res)) yield* res; else yield res;
       }
     }
@@ -1331,6 +1333,8 @@ module.exports = {
     return obj;
   },
 
+  //TODO: Map support for object-related
+
   mapsValues(obj, func, inv) {
     if (typeof func === 'function') {
       if (inv) {
@@ -1448,6 +1452,48 @@ module.exports = {
     let value = from - inc;
     const result = this.maps(Array(count), () => (value += inc));
     return result;
+  },
+
+  *repeatIter(itrb, times) {
+    const itfn = this.iteratorObj(itrb);
+    if (!itfn) throw new Error('is not iterator');
+
+    for (let i = 0; i < times; i++) {
+      const iter = itfn.call(itrb);
+      if (iter === itrb) throw new Error('is not iterable');
+      yield* iter;
+    }
+  },
+
+  async *repeatAsync(itrb, times) {
+    const itfn = this.iteratorObjAsync(itrb);
+    if (!itfn) throw new Error('is not iterator');
+
+    for (let i = 0; i < times; i++) {
+      const iter = itfn.call(itrb);
+      if (iter === itrb) throw new Error('is not iterable');
+      yield* iter;
+    }
+  },
+
+  *stretch(value, times) {
+    for (let i = 0; i < times; i++) yield value;
+  },
+
+  *stretchIter(iter, times) {
+    if (this.iteratorObj(iter)) {
+      for (const item of iter) for (let i = 0; i < times; i++) yield item;
+    } else {
+      for (let i = 0; i < times; i++) yield iter;
+    }
+  },
+
+  async *stretchAsync(iter, times) {
+    if (this.iteratorObjAsync(iter)) {
+      for await (const item of iter) for (let i = 0; i < times; i++) yield item;
+    } else {
+      for (let i = 0; i < times; i++) yield iter;
+    }
   },
 
   *filterIter(iter, func) {
