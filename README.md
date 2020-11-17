@@ -4,6 +4,8 @@
 *Your powerful asynchronous imperative code OOP framework.*
 Latest version: 0.9.15
 
+[![Known Vulnerabilities](https://snyk.io/test/github/tarquas/clasync/badge.svg?targetFile=package.json)](https://snyk.io/test/github/tarquas/clasync?targetFile=package.json)
+
 `npm i -S clasync`
 
 ## Lazy bone

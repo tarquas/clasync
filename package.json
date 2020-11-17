@@ -53,13 +53,13 @@
   },
   "devDependencies": {
     "chai": "^4.2.0",
-    "eslint": "^6.7.1",
+    "eslint": "^7.13.0",
     "eslint-config-airbnb-base": "^14.2.1",
     "eslint-plugin-import": "^2.22.1",
     "jsinspect": "^0.12.7",
-    "mocha": "^6.2.3",
-    "mochawesome": "^4.1.0",
-    "nyc": "^14.1.1"
+    "mocha": "^8.2.1",
+    "mochawesome": "^6.2.1",
+    "nyc": "^15.1.0"
   },
   "engines": {
     "node": ">=8.9.1",
