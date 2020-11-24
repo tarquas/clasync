@@ -324,3 +324,13 @@ Functional (static/func.js):
 - Add `$.stretch()`, `$.stretchIter()`, `$.stretchAsync()`;
 - Add nullable result support to mapping function of `$.mapMultiIter()` and `$.mapMultiAsync()`;
 - Add `$.repeatIter()`, `$.repeatAsync()`.
+
+*** Version 0.9.16 - 2020-11-24
+
+Functional (static/func.js):
+- Change `$.nsecAsync` to return `{item, index, time}`, add `$.nsecMcSec`, `$.nsecMsec`, `$.nsecSec`, `$.nsecMin`;
+- Add `$.feedback()` wrapper to send back `yield` return values;
+- Add `$.pageAsync()` for paging of iterable.
+
+Main module (index.js; static/main.js):
+- Pass `process.argv` to `.main(argv)`.

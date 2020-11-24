@@ -1796,16 +1796,80 @@ module.exports = {
     return result;
   },
 
+  feedback(iterb) {
+    const iterFn = iterb[Symbol.iterator];
+    const asIterFn = iterb[Symbol.asyncIterator];
+    if (!iterFn && !asIterFn) throw new Error('not iterable');
+    let fv;
+
+    const iter = asIterFn ? asIterFn.call(iterb) : iterFn.call(iterb);
+    const iobj = (v) => { fv = v; };
+    const selfIterFn = () => iobj;
+
+    iobj.next = (old) => {
+      const next = iter.next(fv !== undefined ? fv : old);
+      fv = undefined;
+      return next;
+    };
+
+    if (iter.throw) iobj.throw = (err) => iter.throw(err);
+    if (iter.return) iobj.return = (ret) => iter.return(ret);
+    if (iterFn) iobj[Symbol.iterator] = selfIterFn;
+    if (asIterFn) iobj[Symbol.asyncIterator] = selfIterFn;
+
+    return iobj;
+  },
+
+  async *pageAsync(fbIter, cursor, skip, limit, out = {}) {
+    out.skip = skip;
+    out.limit = limit;
+    out.last = null;
+    out.end = false;
+
+    const fb = this.$.feedback(fbIter);
+
+    for await (const res of fb) {
+      if (out.limit <= 0) break;
+      out.length = 0;
+
+      for (const item of res) {
+        const score = item[cursor];
+
+        if (out.last == null || score !== out.last) {
+          out.last = score;
+          out.skip = 1;
+        } else {
+          out.skip++;
+        }
+
+        out.length++;
+        yield item;
+      }
+
+      out.limit -= out.length;
+      fb(out);
+    }
+
+    out.end = true;
+  },
+
+  nsecMcSec: 10n ** 3n,
+  nsecMsec: 10n ** 6n,
+  nsecSec: 10n ** 9n,
+  nsecMin: (10n ** 9n) * 60n,
+
   async *nsecAsync(iter, div) {
+    let index = 0;
     let stamp = process.hrtime.bigint();
 
     for await (const item of iter) {
       const after = process.hrtime.bigint();
 
-      if (div) yield (after - stamp) / BigInt(div);
-      else yield (after - stamp);
+      if (div) yield {item, index, time: (after - stamp) / BigInt(div)};
+      else yield {item, index, time: (after - stamp)};
 
       stamp = after;
+      index++;
     }
   },
 

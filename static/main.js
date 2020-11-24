@@ -59,7 +59,7 @@ const ClasyncMain = {
       );
 
       if (me.main) {
-        const mainRes = await this.race([me.main(), inst.waitFinaled]);
+        const mainRes = await this.race([me.main(process.argv), inst.waitFinaled]);
         if (mainRes == null) this.stay();
         else this.exit(mainRes);
       } else {
