@@ -334,3 +334,12 @@ Functional (static/func.js):
 
 Main module (index.js; static/main.js):
 - Pass `process.argv` to `.main(argv)`.
+
+*** Version 0.10.0 - 2020-11-27
+
+Functional (static/func.js):
+- Deprecate `$.array()` for `$.arrayIter()`;
+- Change `$.flattenIter()`, `$.flattenAsync()` to skip nullable arguments;
+- Add `$.sepIter()`, `$.sepAsync()`;
+- Add `$.stringIter()`, `$.stringAsync()`;
+- Change `$.mapKeys` value projection from object.

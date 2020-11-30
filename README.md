@@ -2,7 +2,7 @@
 # clasync
 **[Node.js]** *CL*ASses AS*YNC*hronous
 *Your powerful asynchronous imperative code OOP framework.*
-Latest version: 0.9.16
+Latest version: 0.10.0
 
 [![Known Vulnerabilities](https://snyk.io/test/github/tarquas/clasync/badge.svg?targetFile=package.json)](https://snyk.io/test/github/tarquas/clasync?targetFile=package.json)
 

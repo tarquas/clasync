@@ -198,7 +198,9 @@ module.exports = {
 
   *flattenIter(...iters) {
     for (const iter of iters) {
-      if (this.iteratorObj(iter)) {
+      if (iter == null) {
+        //
+      } else if (this.iteratorObj(iter)) {
         for (const sub of iter) {
           yield sub;
         }
@@ -210,7 +212,9 @@ module.exports = {
 
   async *flattenAsync(...iters) {
     for (const iter of iters) {
-      if (this.iteratorObjAsync(iter)) {
+      if (iter == null) {
+        //
+      } else if (this.iteratorObjAsync(iter)) {
         for await (const sub of iter) {
           yield sub;
         }
@@ -262,6 +266,26 @@ module.exports = {
     if (a instanceof Array) return a.join(', ');
     if (typeof a === 'object') return this.mapArray(this.entries(a), this.keyValueString).join(', ');
     return a.toString();
+  },
+
+  stringIter(iter) {
+    let res = '';
+
+    for (const item of iter) {
+      res += this.string$(item);
+    }
+
+    return res;
+  },
+
+  async stringAsync(iter) {
+    let res = '';
+
+    for await (const item of iter) {
+      res += this.string$(item);
+    }
+
+    return res;
   },
 
   jsonString(obj, space, opts = {}) {
@@ -1010,11 +1034,13 @@ module.exports = {
     return this.iteratorAsync(iter, call);
   },
 
-  array(iter) {
+  arrayIter(iter) {
     if (iter == null) return [];
     if (!this.iteratorObj(iter)) return [iter];
     return Array.from(iter);
   },
+
+  array(iter) { return this.arrayIter(iter); },
 
   async arrayAsync(iter) {
     if (iter == null) return [];
@@ -1128,6 +1154,44 @@ module.exports = {
     }
 
     return groups;
+  },
+
+  *sepIter(iter, sep) {
+    let next = false;
+    const sepIterb = this.iteratorObj(sep);
+
+    if (sepIterb) {
+      for (const item of iter) {
+        const sepIter = sepItrb.call(sep);
+        if (sepIter === sep) throw 'not iterable';
+        if (next) yield* sepIter; else next = true;
+        yield item;
+      }
+    } else {
+      for (const item of iter) {
+        if (next) yield sep; else next = true;
+        yield item;
+      }
+    }
+  },
+
+  async *sepAsync(iter, sep) {
+    let next = false;
+    const sepIterb = this.iteratorObjAsync(sep);
+
+    if (sepIterb) {
+      for await (const item of iter) {
+        const sepIter = sepItrb.call(sep);
+        if (sepIter === sep) throw 'not iterable';
+        if (next) yield* sepIter; else next = true;
+        yield item;
+      }
+    } else {
+      for await (const item of iter) {
+        if (next) yield sep; else next = true;
+        yield item;
+      }
+    }
   },
 
   *mapIter(iter, func) {
@@ -1259,12 +1323,15 @@ module.exports = {
     const mapFunc = (
       func == null ?
       (inv ? ([k, v]) => ({[v]: func}) : ([k, v]) => ({[v]: v})) :
+
       typeof func === 'function' ?
       (inv ? ([k, v]) => ({[func.call(obj, k, v, obj)]: k}) :
         ([k, v]) => ({[func.call(obj, k, v, obj)]: v})) :
+
       typeof func === 'object' ?
       (inv ? ([k, v]) => ({[func[v]]: v}) : ([k, v]) => ({[func[k]]: v})) :
-      (inv ? ([k, v]) => ({[v]: func}) : ([k, v]) => ({[func + k]: v}))
+
+      (inv ? ([k, v]) => ({[v]: func}) : ([k, v]) => ({[!v ? v : v[func]]: v}))
     );
 
     const result = this.make(this.mapIter(this.entries(obj), mapFunc));
@@ -1275,11 +1342,14 @@ module.exports = {
     const mapFunc = (
       func == null ?
       (inv ? ([k, v]) => ({[k]: k}) : ([k, v]) => ({[k]: func})) :
+
       typeof func === 'function' ?
       (inv ? ([k, v]) => ({[v]: func.call(obj, k, v, obj)}) :
         ([k, v]) => ({[k]: func.call(obj, k, v, obj)})) :
+
       typeof func === 'object' ?
       (inv ? ([k, v]) => ({[k]: func[v]}) : ([k, v]) => ({[k]: func[k]})) :
+
       (inv ? ([k, v]) => ({[k]: func + v}) : ([k, v]) => ({[k]: func}))
     );
 
@@ -1377,6 +1447,7 @@ module.exports = {
   },
 
   omit(from, ...what) {
+    if (!from) return from;
     const keys = this.uniqKeys(what);
 
     const result = this.make(this.mapIter(this.entries(from), ([k, v]) => (
@@ -1387,12 +1458,14 @@ module.exports = {
   },
 
   omits(from, ...what) {
+    if (!from) return from;
     const keys = this.uniqKeys(what);
     for (const key in keys) delete from[key];
     return from;
   },
 
   omitBy(from, func) {
+    if (!from) return from;
     const keys = this.pickBy(from, func);
     const result = this.omit(from, keys);
     return result;
@@ -1413,6 +1486,7 @@ module.exports = {
   },
 
   pick(from, ...what) {
+    if (!from) return from;
     const keys = this.uniqKeys(what);
 
     const result = this.make(this.mapIter(this.keys(keys), (key) => (
@@ -1423,6 +1497,8 @@ module.exports = {
   },
 
   pickBy(from, func) {
+    if (!from) return from;
+
     const result = this.make(
       this.mapIter(
         this.filterIter(
