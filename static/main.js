@@ -23,6 +23,13 @@ const ClasyncMain = {
         this.throw('Timed out waiting for finalizers', {title: 'CRITICAL'});
         process.exit(2);
       }
+
+      const mainRunning = this.waitMain && !this.mainFinish;
+
+      if (mainRunning) {
+        this.throw('Timed out waiting for main', {title: 'CRITICAL'});
+        process.exit(2);
+      }
     })();
 
     return this.exiting;
@@ -40,7 +47,7 @@ const ClasyncMain = {
     try {
       if (typeof config === 'function') config = config();
       if (typeof config.then === 'function') config = await config;
-      const me = await new this(config)[this.ready];
+      const me = new this(config);
       this.setMainInstance(me);
       const inst = me[this.instance];
 
@@ -58,20 +65,34 @@ const ClasyncMain = {
         err => this.throw(err, {title: 'UNHANDLED PROMISE REJECTION'})
       );
 
-      if (me.main) {
-        const mainRes = await this.race([me.main(process.argv), inst.waitFinaled]);
-        if (mainRes == null) this.stay();
-        else this.exit(mainRes);
-      } else {
-        this.stay();
+      try {
+        await me[this.ready];
+        this.mainInited = true;
+      } catch (err) {
+        if (!this.mainFatal || !await this.initFatal(err)) {
+          this.throw(err, {title: 'INIT EXCEPTION', exit: 1});
+        }
       }
 
-      const reason = await inst.waitFinaled;
-      process.exit(reason);
+      if (this.mainInited && !me[this.final] && !this.exiting) {
+        if (me.main) {
+          this.waitMain = me.main(process.argv);
+          const mainRes = await this.waitMain;
+          this.mainFinish = true;
+          if (mainRes == null) this.stay();
+          else this.exit(mainRes);
+        } else {
+          this.stay();
+        }
+      }
     } catch (err) {
+      this.mainFinish = true;
       if (this.mainFatal && await this.mainFatal(err)) return;
-      this.throw(err, {title: 'UNHANDLED EXCEPTION', exit: 1});
+      this.throw(err, {title: 'MAIN EXCEPTION', exit: 1});
     }
+
+    const reason = await this.mainInstance[this.instance].waitFinaled;
+    process.exit(reason);
   },
 
   async autorun(Module) {

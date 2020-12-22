@@ -17,7 +17,10 @@ class Clasync extends ClasyncBase {
 
   static get $() {
     if (!Clasync.staticSelfBound.has(this)) {
-      bind$(this, this);
+      for (let o = this; o; o = Object.getPrototypeOf(o)) {
+        bind$(this, o);
+      }
+
       Clasync.staticSelfBound.set(this, true);
     }
 
@@ -80,9 +83,13 @@ class Clasync extends ClasyncBase {
     await Clasync.all(Clasync.flattenDeep(sub).map(s => Clasync.subSetOne.call(this, s)));
   }
 
-  static async isFinal(t) {
-    const inst = this.get(await t[Clasync.ready], Clasync.instance);
+  static isFinal$(t) {
+    const inst = this.get(t, Clasync.instance);
     return inst.final;
+  }
+
+  static mainFinal$() {
+    return this.isFinal(this.mainInstance);
   }
 
   static async finish(t, reasonOrig) {
@@ -94,7 +101,11 @@ class Clasync extends ClasyncBase {
     inst.final = true;
     inst.setFinal(reason);
 
-    if (!inst.inited) await inst.waitInited;
+    if (!inst.inited) try {
+      await t[this.ready];
+    } catch (err) {
+      inst.initError = true;
+    }
 
     for (let p, o = t; o.beforeFinal; p = o.beforeFinal, o = Object.getPrototypeOf(o)) {
       if (o.beforeFinal !== p) try {
@@ -115,6 +126,7 @@ class Clasync extends ClasyncBase {
       delete from[key];
     }));
 
+    //if (!inst.initError)
     for (let p, o = t; o.final; p = o.final, o = Object.getPrototypeOf(o)) {
       if (o.final !== p) try {
         await o.final.call(t, reason);
@@ -152,14 +164,13 @@ async function ClasyncCtor(t, $$) {
   try {
     const inits = [];
     const afterInits = [];
+    const up = [];
 
     const inst = {createdAt: new Date(), id: Clasync.nextId++, init$$: !$$, $$};
     inst.waitInited = new Promise((resolve) => { inst.setInited = resolve; });
     inst.waitFinal = new Promise((resolve) => { inst.setFinal = resolve; });
     inst.waitFinaled = new Promise((resolve) => { inst.setFinaled = resolve; });
     if (!$$) inst.$$ = t;
-
-    bind$(t, Object.getPrototypeOf(t));
 
     Object.defineProperties(t, {
       [Clasync.instance]: {value: inst},
@@ -169,22 +180,26 @@ async function ClasyncCtor(t, $$) {
 
     await t.$.$.tick();
 
-    for (let o = t; o.init; o = Object.getPrototypeOf(o)) {
-      if (o.init !== inits[0]) inits.unshift(o.init);
-    }
-
-    for (let o = t; o.afterInit; o = Object.getPrototypeOf(o)) {
-      if (o.afterInit !== afterInits[0]) afterInits.unshift(o.afterInit);
+    for (let o = t; o; o = Object.getPrototypeOf(o)) {
+      up.unshift(o);
+      if (Object.hasOwnProperty.call(o, 'init')) inits.unshift(o.init);
+      if (Object.hasOwnProperty.call(o, 'afterInit')) afterInits.unshift(o.afterInit);
     }
 
     const sub = Clasync.subSet.bind(t);
 
+    for (const o of up) {
+      bind$(t, o);
+    }
+
     for (const init of inits) {
+      if (typeof init !== 'function') continue;
       const subObj = await init.call(t, sub);
       if (subObj) await sub(subObj);
     }
 
     for (const afterInit of afterInits) {
+      if (typeof afterInit !== 'function') continue;
       const subObj = await afterInit.call(t, sub);
       if (subObj) await sub(subObj);
     }

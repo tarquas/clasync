@@ -343,3 +343,16 @@ Functional (static/func.js):
 - Add `$.sepIter()`, `$.sepAsync()`;
 - Add `$.stringIter()`, `$.stringAsync()`;
 - Change `$.mapKeys` value projection from object.
+
+*** Version 0.10.1 - 2020-12-22
+
+Overall
+- Improve `...$()` self-bind isolation and class inheritance.
+
+Main module (index.js; static/main.js):
+- Improve main module lifecycle;
+- Add `$.mainFinal()`.
+
+Functional (static/func.js):
+- Add `$.fromEntries()` aliased by `$.fromPairs()`;
+- Add `$.stopIter()`, `$.stopAsync()`.

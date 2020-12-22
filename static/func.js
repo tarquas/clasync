@@ -302,7 +302,7 @@ module.exports = {
 
       objs.set(v, true);
       if (v instanceof Set) return Array.from(v);
-      if (v instanceof Map) return this.fromPairs(Array.from(v));
+      if (v instanceof Map) return this.fromEntries(Array.from(v));
 
       if (v instanceof WeakMap) {
         if (opts.special) return opts.special.call(this, k, v);
@@ -542,7 +542,7 @@ module.exports = {
       else this.append(acc, obj.values);
     } else if (obj instanceof Map) {
       if (acc.set) obj.forEach((v, k) => acc.set(k, v));
-      else Object.assign(acc, this.fromPairs(Array.from(obj.entries())));
+      else Object.assign(acc, this.fromEntries(Array.from(obj.entries())));
     } else if (typeof obj === 'object') {
       Object.assign(acc, obj);
     } else if (typeof obj === 'function') {
@@ -596,7 +596,23 @@ module.exports = {
     if (chunk.length) yield chunk;
   },
 
-  *partialIter(from, arg, ...items) {
+  *stopIter(iter, condFn) {
+    for (const item of iter) {
+      if (condFn.call(this, item, iter)) break;
+      yield item;
+      if (condFn.call(this, item, iter)) break;
+    }
+  },
+
+  async *stopAsync(iter, condFn) {
+    for await (const item of iter) {
+      if (condFn.call(this, item, iter)) break;
+      yield item;
+      if (condFn.call(this, item, iter)) break;
+    }
+  },
+
+  *partialIter(iter, arg, ...items) {
     let {limit} = arg;
 
     if (items.length) {
@@ -867,11 +883,13 @@ module.exports = {
     return result;
   },
 
-  fromPairs(pairs) {
+  fromEntries(pairs) {
     if (Object.fromEntries) return Object.fromEntries(pairs);
     const result = this.make(this.mapIter(pairs, ([k, v]) => ({[k]: v})));
     return result;
   },
+
+  fromPairs(pairs) { return this.fromEntries(pairs); },
 
   *forkOne(from, arg, i) {
     const {buf, idxs, limit} = arg;
