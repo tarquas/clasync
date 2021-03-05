@@ -26,6 +26,14 @@ module.exports = {
     return null;
   },
 
+  not(arg) {
+    return !arg;
+  },
+
+  async notAsync(arg) {
+    return !arg;
+  },
+
   bound() {
     return this;
   },
@@ -184,7 +192,7 @@ module.exports = {
 
   async appendAsync(array, ...tails) {
     for (const tail of tails) {
-      if (this.iteratorObjAsync(tail)) {
+      if (this.asyncIteratorObj(tail)) {
         for await (const sub of tail) {
           Array.prototype.push.call(array, sub);
         }
@@ -214,7 +222,7 @@ module.exports = {
     for (const iter of iters) {
       if (iter == null) {
         //
-      } else if (this.iteratorObjAsync(iter)) {
+      } else if (this.asyncIteratorObj(iter)) {
         for await (const sub of iter) {
           yield sub;
         }
@@ -239,7 +247,7 @@ module.exports = {
 
   async *flattenDeepAsync(depth, ...iters) {
     for (const iter of iters) {
-      if (this.iteratorObjAsync(iter)) {
+      if (this.asyncIteratorObj(iter)) {
         for await (const sub of iter) {
           if (depth) yield* this.flattenDeepAsync(depth - 1, sub);
           else yield sub;
@@ -506,7 +514,7 @@ module.exports = {
     for (const part of parts) {
       if (!part) {
         //
-      } else if (this.iteratorObjAsync(part)) {
+      } else if (this.asyncIteratorObj(part)) {
         for await (const sub of part) Object.assign(result, sub);
       } else {
         Object.assign(result, part);
@@ -596,6 +604,52 @@ module.exports = {
     if (chunk.length) yield chunk;
   },
 
+  *chunkByIter(iter, func) {
+    let cur = [];
+    let idx = 0;
+
+    for (const item of iter) {
+      cur.push(item);
+
+      if (func.call(this, item, cur, iter)) {
+        yield cur;
+        cur = [];
+      }
+    }
+
+    if (cur.length) yield cur;
+  },
+
+  async *chunkByAsync(iter, func) {
+    let cur = [];
+    let idx = 0;
+
+    for await (const item of iter) {
+      cur.push(item);
+
+      if (await func.call(this, item, cur, iter)) {
+        yield cur;
+        cur = [];
+      }
+    }
+
+    if (cur.length) yield cur;
+  },
+
+  async *chunkByTimeAsync(iter, timeMsec, maxSize) {
+    let start = process.hrtime.bigint();
+    const time = BigInt(timeMsec * 1e6);
+
+    const func = (item, cur) => {
+      if (maxSize && cur.length >= maxSize) return true;
+      const now = process.hrtime.bigint();
+      if (now - start > time) { start = now; return true; }
+      return false;
+    };
+
+    yield* this.chunkByAsync(iter, func);
+  },
+
   *stopIter(iter, condFn) {
     for (const item of iter) {
       if (condFn.call(this, item, iter)) break;
@@ -673,7 +727,7 @@ module.exports = {
   },
 
   async *chunkAsyncAsync(from, limit) {
-    let iter = this.iteratorObjAsync(from, true);
+    let iter = this.asyncIteratorObj(from, true);
     let skip = 0;
     const arg = {limit};
 
@@ -826,7 +880,7 @@ module.exports = {
     for (const def of defs) {
       if (!def) {
         //
-      } if (this.iteratorObjAsync(def)) {
+      } if (this.asyncIteratorObj(def)) {
         for await (const sub of def) for (const [k, v] of this.entries(sub)) {
           if (!(k in obj)) obj[k] = v;
         }
@@ -858,7 +912,7 @@ module.exports = {
     for (const ext of exts) {
       if (!ext) {
         //
-      } else if (this.iteratorObjAsync(ext)) {
+      } else if (this.asyncIteratorObj(ext)) {
         for await (const sub of ext) Object.assign(obj, sub);
       } else {
         Object.assign(obj, ext);
@@ -1005,7 +1059,7 @@ module.exports = {
 
   forkAsync(from, count, limit) {
     const iters = Array(count);
-    const iter = this.iteratorObjAsync(from, true);
+    const iter = this.asyncIteratorObj(from, true);
 
     if (iter !== from) {
       if (iter && iter.return) iter.return();
@@ -1034,7 +1088,7 @@ module.exports = {
     return func;
   },
 
-  iteratorAsync(iter, call) {
+  asyncIterator(iter, call) {
     let func = iter[Symbol.asyncIterator];
     if (!func) func = iter[Symbol.iterator];
     if (!func) return null;
@@ -1042,14 +1096,50 @@ module.exports = {
     return func;
   },
 
+  iteratorAsync(iter, call) { // OLD:
+    return this.asyncIterator(iter, call);
+  },
+
   iteratorObj(iter, call) {
     if (!iter || typeof iter !== 'object') return null;
     return this.iterator(iter, call);
   },
 
-  iteratorObjAsync(iter, call) {
+  asyncIteratorObj(iter, call) {
     if (!iter || typeof iter !== 'object') return null;
-    return this.iteratorAsync(iter, call);
+    return this.asyncIterator(iter, call);
+  },
+
+  iteratorObjAsync(iter, call) { // OLD:
+    return this.asyncIteratorObj(iter, call);
+  },
+
+  generator(gen, ...args) {
+    if (typeof gen !== 'function') return null;
+    const iter = gen.call(this, ...args);
+    if (!this.iterator(iter)) return null;
+    return iter;
+  },
+
+  asyncGenerator(gen, ...args) {
+    if (typeof gen !== 'function') return null;
+    const iter = gen.call(this, ...args);
+    if (!this.asyncIterator(iter)) return null;
+    return iter;
+  },
+
+  iterable(itrb, ...args) {
+    const iter = this.iterator(itrb, true);
+    if (!iter) return this.generator(itrb, ...args);
+    if (iter === itrb) throw new Error('not iterable');
+    return iter;
+  },
+
+  asyncIterable(itrb, ...args) {
+    const iter = this.asyncIterator(itrb, true);
+    if (!iter) return this.asyncGenerator(itrb, ...args);
+    if (iter === itrb) throw new Error('not iterable');
+    return iter;
   },
 
   arrayIter(iter) {
@@ -1062,7 +1152,7 @@ module.exports = {
 
   async arrayAsync(iter) {
     if (iter == null) return [];
-    if (!this.iteratorObjAsync(iter)) return [iter];
+    if (!this.asyncIteratorObj(iter)) return [iter];
     const arr = [];
 
     for await (const item of iter) {
@@ -1176,12 +1266,11 @@ module.exports = {
 
   *sepIter(iter, sep) {
     let next = false;
-    const sepIterb = this.iteratorObj(sep);
+    const sepIterb = sepIterb === 'function' || this.iteratorObj(sep);
 
     if (sepIterb) {
       for (const item of iter) {
-        const sepIter = sepItrb.call(sep);
-        if (sepIter === sep) throw 'not iterable';
+        const sepIter = this.iterable(sep);
         if (next) yield* sepIter; else next = true;
         yield item;
       }
@@ -1195,12 +1284,11 @@ module.exports = {
 
   async *sepAsync(iter, sep) {
     let next = false;
-    const sepIterb = this.iteratorObjAsync(sep);
+    const sepIterb = sepIterb === 'function' || this.asyncIteratorObj(sep);
 
     if (sepIterb) {
       for await (const item of iter) {
-        const sepIter = sepItrb.call(sep);
-        if (sepIter === sep) throw 'not iterable';
+        const sepIter = this.asyncIterable(sep);
         if (next) yield* sepIter; else next = true;
         yield item;
       }
@@ -1280,12 +1368,12 @@ module.exports = {
 
       for await (const item of iter) {
         const res = await func.call(this, item, idx++, iter);
-        if (this.iteratorObjAsync(res)) yield* res; else yield res;
+        if (this.asyncIteratorObj(res)) yield* res; else yield res;
       }
     } else {
       for await (const item of iter) {
         const res = item[func];
-        if (this.iteratorObjAsync(res)) yield* res; else yield res;
+        if (this.asyncIteratorObj(res)) yield* res; else yield res;
       }
     }
   },
@@ -1530,10 +1618,73 @@ module.exports = {
     return result;
   },
 
-  range(sfrom, sto, step) {
-    let from = sfrom;
-    let to = sto;
+  async prefetchAsyncBg(args, iter, size) {
+    try {
+      let value, done;
 
+      while (args.wait = iter.next(args.buf.length), {value, done} = await args.wait, !done && !args.eof) {
+        args.buf.push(value);
+
+        if (size && args.buf.length >= size) {
+          await new Promise((resolve) => { args.resume = resolve; });
+          args.resume = null;
+        }
+
+        if (args.eof) break;
+      }
+
+      if (!done && iter.return) iter.return();
+    } catch (err) {
+      args.error = err;
+    } finally {
+      args.done = true;
+    }
+  },
+
+  async *prefetchAsync(iter, size, {chunk, feedback} = {}) {
+    const args = {buf: []};
+
+    const lag = !feedback ? null : (item, idx, buf) => (
+      {
+        item,
+        idx,
+        curLen: buf.length,
+        lagLen: args.buf.length,
+        done: !!args.done
+      }
+    );
+
+    let cur;
+
+    try {
+      this.$.prefetchAsyncBg(args, iter, size);
+
+      while (!args.done) {
+        const buf = args.buf;
+
+        if (buf.length) {
+          args.buf = [];
+          if (chunk) yield buf; else yield* lag ? this.$.mapIter(buf, lag) : buf;
+        } else if (args.wait) {
+          await args.wait;
+        }
+
+        if (args.resume) args.resume();
+      }
+
+      if (args.error) {
+        throw args.error;
+      } else if (args.buf.length) {
+        const buf = args.buf;
+        args.buf = [];
+        if (chunk) yield buf; else yield* lag ? this.$.mapIter(buf, lag) : buf;
+      }
+    } finally {
+      args.eof = true;
+    }
+  },
+
+  range(from, to, step) {
     if (to == null) {
       to = from;
       from = 0;
@@ -1548,24 +1699,25 @@ module.exports = {
     return result;
   },
 
-  *repeatIter(itrb, times) {
-    const itfn = this.iteratorObj(itrb);
-    if (!itfn) throw new Error('is not iterator');
+  *rangeIter(from, to, step = 1) {
+    if (to == null) {
+      to = from;
+      from = 0;
+    }
 
+    for (let v = from; v < to; v += step) yield v;
+  },
+
+  *repeatIter(itrb, times) {
     for (let i = 0; i < times; i++) {
-      const iter = itfn.call(itrb);
-      if (iter === itrb) throw new Error('is not iterable');
+      const iter = this.iterator(itrb);
       yield* iter;
     }
   },
 
   async *repeatAsync(itrb, times) {
-    const itfn = this.iteratorObjAsync(itrb);
-    if (!itfn) throw new Error('is not iterator');
-
     for (let i = 0; i < times; i++) {
-      const iter = itfn.call(itrb);
-      if (iter === itrb) throw new Error('is not iterable');
+      const iter = this.asyncIterator(itrb);
       yield* iter;
     }
   },
@@ -1583,7 +1735,7 @@ module.exports = {
   },
 
   async *stretchAsync(iter, times) {
-    if (this.iteratorObjAsync(iter)) {
+    if (this.asyncIteratorObj(iter)) {
       for await (const item of iter) for (let i = 0; i < times; i++) yield item;
     } else {
       for (let i = 0; i < times; i++) yield iter;
@@ -1624,6 +1776,80 @@ module.exports = {
         if (item[func]) yield item;
       }
     }
+  },
+
+  reduceIter(iter, func, init) {
+    for (const item of iter) {
+      if (init === undefined) init = item;
+      else init = func.call(this, init, item, iter);
+    }
+
+    return init;
+  },
+
+  async reduceAsync(iter, func, init) {
+    for await (const item of iter) {
+      if (init === undefined) init = item;
+      else init = await func.call(this, init, item, iter);
+    }
+
+    return init;
+  },
+
+  *partialDimIter(pfx, dim1, dim2, ...dims) {
+    for (const item of dim1) {
+      const out = [...pfx, item];
+      if (dim2) yield* this.partialDimIter(out, this.iterable(dim2, out), ...dims);
+      else yield out;
+    }
+  },
+
+  async *partialDimAsync(pfx, dim1, dim2, ...dims) {
+    for await (const item of dim1) {
+      const out = [...pfx, item];
+      if (dim2) yield* this.partialDimAsync(out, this.asyncIterable(dim2, out), ...dims);
+      else yield out;
+    }
+  },
+
+  *dimIter(...dims) {
+    const pfx = [];
+    yield* this.partialDimIter(pfx, ...dims);
+  },
+
+  async *dimAsync(...dims) {
+    const pfx = [];
+    yield* this.partialDimAsync(pfx, ...dims);
+  },
+
+  //WARN: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/setPrototypeOf
+
+  pure(obj, ...parts) {
+    if (obj != null) Object.setPrototypeOf(obj, null);
+    else obj = Object.create(null);
+    if (parts.length) this.extend(obj, ...parts);
+    return obj;
+  },
+
+  async pureAsync(obj, ...parts) {
+    if (obj != null) Object.setPrototypeOf(obj, null);
+    else obj = Object.create(null);
+    if (parts.length) await this.extendAsync(obj, ...parts);
+    return obj;
+  },
+
+  proto(up, obj, ...parts) {
+    if (obj != null) Object.setPrototypeOf(obj, up);
+    else obj = Object.create(up);
+    if (parts.length) this.extend(obj, ...parts);
+    return obj;
+  },
+
+  async protoAsync(up, obj, ...parts) {
+    if (obj != null) Object.setPrototypeOf(obj, up);
+    else obj = Object.create(up);
+    if (parts.length) await this.extendAsync(obj, ...parts);
+    return obj;
   },
 
   remove(arr, func) {
@@ -1758,7 +1984,7 @@ module.exports = {
     let left = length;
 
     const iters = collate.map((iter) => (
-      this.iteratorObjAsync(iter, true) ||
+      this.asyncIteratorObj(iter, true) ||
       this.iteratorObj([iter], true)
     ));
 
@@ -1870,7 +2096,7 @@ module.exports = {
 
         if (items.length) {
           for (const item of items) {
-            if (this.context.iteratorObjAsync(item)) {
+            if (this.context.asyncIteratorObj(item)) {
               for await (const sub of item) {
                 this.push(sub);
               }
@@ -1893,7 +2119,7 @@ module.exports = {
   feedback(iterb) {
     const iterFn = iterb[Symbol.iterator];
     const asIterFn = iterb[Symbol.asyncIterator];
-    if (!iterFn && !asIterFn) throw new Error('not iterable');
+    if (!iterFn && !asIterFn) throw new Error('not iterator');
     let fv;
 
     const iter = asIterFn ? asIterFn.call(iterb) : iterFn.call(iterb);

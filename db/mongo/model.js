@@ -1,4 +1,5 @@
 const Clasync = require('../..');
+const {common} = Clasync.Db.Mongo;
 
 class DbMongoModel extends Clasync.Emitter {
   // db -- database (class DbMongo) connection
@@ -10,14 +11,24 @@ class DbMongoModel extends Clasync.Emitter {
     return doc;
   }
 
-  async init() {
-    this.Schema = this.db.common.Schema;
-    this.Mixed = this.Schema.Types.Mixed;
-    this.errors = this.$.errors;
+  static Schema = common.Schema;
+  static Mixed = common.Schema.Types.Mixed;
+  static ObjectId = common.ObjectId;
 
+  Schema = this.$.Schema;
+  Mixed = this.$.Mixed;
+  ObjectId = this.$.ObjectId;
+  errors = this.$.errors;
+
+  async init() {
+  }
+
+  async afterInit() {
     const {schema} = this;
-    this._schema = schema;
+    if (!schema) throw new Error('schema is not defined');
+    this._schema = await (typeof schema === 'function' ? schema.call(this) : schema);
     const {collection} = schema.options;
+    if (!collection) throw new Error('collection is not defined');
     if (this.db.prefix) schema.options.collection = `${this.db.prefix}${collection}`;
     let {name} = this;
     if (!name) this.name = name = collection;

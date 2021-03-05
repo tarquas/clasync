@@ -116,6 +116,10 @@ class Clasync extends ClasyncBase {
       }
     }
 
+    if (t === this.mainInstance && !this.mainInstance.suppressCrash && reason) {
+      this.throw(reason, 'MAIN SHUTDOWN');
+    }
+
     const from = t;
 
     await this.all(Object.entries(from).map(async ([key, sub]) => {

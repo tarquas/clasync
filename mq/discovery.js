@@ -7,7 +7,7 @@ class Discovery extends MqDisp {
   // info -- what information to share with
   // db -- if DbMongo instance is specified, info also will include DB stats
 
-  async update(info) {
+  async update$(info) {
     await this.pub('instanceUp', {instId: this.instId, info});
   }
 

@@ -31,6 +31,8 @@ class Web extends Clasync.Emitter {
       this.primary = false;
     } else {
       this.app = express();
+      this.router = new express.Router();
+      this.app.use(this.router);
 
       if (this.httpBind && (this.httpBind === this.httpsBind || this.httpsBind === true)) {
         this.http = httpoly.createServer({...this.httpOpts, ...this.httpsOpts}, this.app);
@@ -40,7 +42,7 @@ class Web extends Clasync.Emitter {
         if (this.httpsBind) this.https = https.Server(this.app, this.httpsOpts);
       }
 
-      Web.binds[bind] = {app: this.app, http: this.http, https: this.https};
+      Web.binds[bind] = this.$.pick(this, 'app', 'router', 'http', 'https');
       this.primary = true;
     }
   }
@@ -138,6 +140,8 @@ class Web extends Clasync.Emitter {
     const result = await this.express(this.multer.array(req.mwArg), req);
     return result;
   }
+
+  //TODO: jsonArray()
 
   async final() {
     if (this.primary) {

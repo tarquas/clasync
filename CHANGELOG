@@ -356,3 +356,29 @@ Main module (index.js; static/main.js):
 Functional (static/func.js):
 - Add `$.fromEntries()` aliased by `$.fromPairs()`;
 - Add `$.stopIter()`, `$.stopAsync()`.
+
+*** Version 0.10.2 - 2021-03-05
+
+DB Mongo (db/mongo/):
+- Model grabs schema in `.afterInit()`.
+- Static `Schema`, `Mixed`, `ObjectId`.
+
+Main module (index.js; static/main.js):
+- Log main shutdown event;
+- Add `.suppressCrash` option to main instance.
+
+Functional (static/func.js):
+- Add `$.not()`, `$.notAsync()`;
+- Add `$.chunkByIter()`, `$.chunkByAsync()`, `$.chunkByTimeAsync()`;
+- Refactor to `$.asyncIterator()`, `$.asyncIteratorObj()`;
+- Add `$.generator()`, `$.asyncGenerator()`, `$.iterable()`, `$.asyncIterable()`;
+- Add `$.prefetchAsync()`;
+- Add `$.rangeIter()`, `$.reduceIter()`, `$.reduceAsync()`;
+- Add `$.dimIter()`, `$.dimAsync()`;
+- Add `$.pure()`, `$.pureAsync()`, `$.proto()`, `$.protoAsync()`;
+
+Web (web/index.js; web/api.js; web/rest.js):
+- Add default error 'apiNotFound' (404);
+- Add support for iterative response;
+- Add `.router` for endpoints;
+- Add support for `.notFound()` method in Rest.

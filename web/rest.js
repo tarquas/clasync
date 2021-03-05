@@ -67,11 +67,11 @@ class WebRest extends Clasync.Emitter {
     const [matched, method, path, middleware] = action.match(this.$.rxMethodPath) || [];
     if (!matched) return;
     const handler = customHandler || this[action];
-    const func = this.web.app[method.toLowerCase()];
+    const func = this.web.router[method.toLowerCase()];
 
     if (func) {
       func.call(
-        this.web.app,
+        this.web.router,
         `${this.web._prefix}${this._prefix}${path}`,
         this.wrapToMiddleware(handler, middleware)
       );
@@ -86,6 +86,8 @@ class WebRest extends Clasync.Emitter {
     for (const action of Object.getOwnPropertyNames(Object.getPrototypeOf(this))) {
       this.addRoute(action);
     }
+
+    if (this.notFound) this.web.app.use(this.wrapToMiddleware(this.notFound));
   }
 }
 
