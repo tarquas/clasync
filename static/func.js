@@ -1266,7 +1266,7 @@ module.exports = {
 
   *sepIter(iter, sep) {
     let next = false;
-    const sepIterb = sepIterb === 'function' || this.iteratorObj(sep);
+    const sepIterb = typeof sep === 'function' || this.iteratorObj(sep);
 
     if (sepIterb) {
       for (const item of iter) {
@@ -1284,7 +1284,7 @@ module.exports = {
 
   async *sepAsync(iter, sep) {
     let next = false;
-    const sepIterb = sepIterb === 'function' || this.asyncIteratorObj(sep);
+    const sepIterb = typeof sep === 'function' || this.asyncIteratorObj(sep);
 
     if (sepIterb) {
       for await (const item of iter) {
