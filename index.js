@@ -252,4 +252,4 @@ Clasync.App = class App extends Clasync.Emitter {
   static configure() { return {}; }
 };
 
-Clasync.autorun(require.main).catch(err => Clasync.logFatal(err));
+Clasync.autorun().catch(err => Clasync.logFatal(err));

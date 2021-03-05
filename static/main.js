@@ -96,8 +96,8 @@ const ClasyncMain = {
   },
 
   async autorun(Module) {
-    if (!Module) return;
     await this.tick();
+    if (!Module) Module = this.mainModule || require.main;
     const Class = Module.exports;
     if (Class === this) throw '[FATAL] Main module may not be a Clasync class itself';
     if (!Class || !Object.isPrototypeOf.call(this, Class)) return;
