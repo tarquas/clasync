@@ -1710,14 +1710,14 @@ module.exports = {
 
   *repeatIter(itrb, times) {
     for (let i = 0; i < times; i++) {
-      const iter = this.iterator(itrb);
+      const iter = this.iterable(itrb);
       yield* iter;
     }
   },
 
   async *repeatAsync(itrb, times) {
     for (let i = 0; i < times; i++) {
-      const iter = this.asyncIterator(itrb);
+      const iter = this.asyncIterable(itrb);
       yield* iter;
     }
   },
