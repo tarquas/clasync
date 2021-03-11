@@ -357,7 +357,7 @@ Functional (static/func.js):
 - Add `$.fromEntries()` aliased by `$.fromPairs()`;
 - Add `$.stopIter()`, `$.stopAsync()`.
 
-*** Version 0.10.5 - 2021-03-05
+*** Version 0.10.6 - 2021-03-11
 
 DB Mongo (db/mongo/):
 - Model grabs schema in `.afterInit()`.

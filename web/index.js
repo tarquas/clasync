@@ -48,8 +48,8 @@ class Web extends Clasync.Emitter {
   }
 
   use(middleware) {
-    if (!this._prefix) return this.app.use(middleware);
-    return this.app.use(this._prefix, middleware);
+    if (!this._prefix) return this.router.use(middleware);
+    return this.router.use(this._prefix, middleware);
   }
 
   async express(middleware, req) {

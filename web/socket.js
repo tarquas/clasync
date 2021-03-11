@@ -205,8 +205,8 @@ class WebSocket extends Clasync.Emitter {
     if (this.web.https && this.web.https !== this.web.http) io.attach(this.web.https);
   }
 
-  async init() {
-    const {prefix} = this;
+  async afterInit() {
+    const {prefix, mqPrefix} = this;
 
     const {binds} = this.web.$;
     const bind = `WEBSOCKET ${prefix}`;
@@ -223,8 +223,8 @@ class WebSocket extends Clasync.Emitter {
       });
 
       if (this.mq) {
-        await this.mq.ready;
-        io.adapter(amqpAdapter(this.mq));
+        await this.mq[Clasync.ready];
+        io.adapter(amqpAdapter(this.mq, {prefix: mqPrefix || ''}));
       }
 
       this.attachToServers(io);
