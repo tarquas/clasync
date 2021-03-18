@@ -387,7 +387,7 @@ Web (web/index.js; web/api.js; web/rest.js):
 *** Version 0.10.7 - 2021-03-20
 
 Main module (index.js; static/main.js):
-- Reset `$.mainInstance` on finalize;
+- Reset `$.mainInstance` on main instance finalize;
 - Add `$.mainClass`.
 
 Functional (static/func.js):
