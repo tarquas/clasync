@@ -106,7 +106,7 @@ const ClasyncMain = {
     }
 
     if (!Class) Class = !Module || Object.isPrototypeOf.call(this, Module) ? Module : Module.exports;
-    else if (!Object.isPrototypeOf.call(this, Class)) return;
+    if (!Object.isPrototypeOf.call(this, Class)) return;
 
     if (Class === this) throw new Error('Main module may not be a Clasync class itself');
     if (Class) await Class.runMain();

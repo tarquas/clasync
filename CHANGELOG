@@ -384,7 +384,7 @@ Web (web/index.js; web/api.js; web/rest.js):
 - Add `.router` for endpoints;
 - Add support for `.notFound()` method in Rest.
 
-*** Version 0.10.7 - 2021-03-20
+*** Version 0.10.8 - 2021-03-20
 
 Main module (index.js; static/main.js):
 - Reset `$.mainInstance` on main instance finalize;
