@@ -97,11 +97,19 @@ const ClasyncMain = {
 
   async autorun(Module) {
     await this.tick();
-    if (!Module) Module = this.mainModule || require.main;
-    const Class = Module.exports;
-    if (Class === this) throw '[FATAL] Main module may not be a Clasync class itself';
-    if (!Class || !Object.isPrototypeOf.call(this, Class)) return;
-    await Class.runMain();
+    if (this.mainInstance) throw new Error('Main instance is already set');
+    let Class;
+
+    if (!Module) {
+      Class = this.mainClass;
+      if (!Class) Module = this.mainModule || require.main;
+    }
+
+    if (!Class) Class = !Module || Object.isPrototypeOf.call(this, Module) ? Module : Module.exports;
+    else if (!Object.isPrototypeOf.call(this, Class)) return;
+
+    if (Class === this) throw new Error('Main module may not be a Clasync class itself');
+    if (Class) await Class.runMain();
   },
 
   exitSignals: [

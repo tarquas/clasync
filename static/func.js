@@ -265,6 +265,7 @@ module.exports = {
   },
 
   string$(a) {
+    if (typeof a === 'string') return a;
     if (a == null) return String(a);
     if (a instanceof Date) return a.toISOString();
 
@@ -363,68 +364,211 @@ module.exports = {
     };
   },
 
+  insortDepth: Symbol('insortDepth'),
+  insortMag: Symbol('insortMag'),
+
+  walkInsort(obj, field, key, create) {
+    let root = !obj ? field : obj[field];
+
+    if (!root || !root[this.insortDepth]) {
+      if (create) {
+        let {mag} = create;
+        mag = mag != null ? +mag : 3;
+        if (Number.isNaN(mag) || mag < 0) throw new Error('insort: bad mag value');
+        root = $.make();
+        if (obj) obj[field] = root;
+        root[this.insortDepth] = 1;
+        root[this.insortMag] = mag;
+      } else return;
+    }
+
+    const mag = root[this.insortMag];
+    if (key < 0) throw new Error('insort key can not be negative');
+    if (typeof key !== 'bigint' && !Number.isInteger(key)) throw new Error('insort key must be integer');
+    const hex = key.toString(16);
+    const l = hex.length;
+    let depth = ((l - 1) >> mag) + 1;
+    let d = root[this.insortDepth];
+    let deeper = depth - d;
+
+    if (deeper > 0) {
+      let p = root;
+
+      if (create) {
+        if (this.hasKeys(p)) {
+          while (deeper--) {
+            const newRoot = $.make();
+            newRoot[this.insortDepth] = ++d;
+            newRoot[this.insortMag] = mag;
+            newRoot['0'] = p;
+            p = newRoot;
+          }
+        } else {
+          const newRoot = $.make();
+          newRoot[this.insortDepth] = depth;
+          newRoot[this.insortMag] = mag;
+          p = newRoot;
+        }
+      } else return;
+
+      root = p;
+      if (obj) obj[field] = p;
+    } else if (deeper < 0) while (deeper++) {
+      root = root['0'];
+    }
+
+    const dig = 1 << mag;
+    const mask = dig - 1;
+    let left = ((l + mask) & mask) + 2;
+    const grouped = this.chunkByIter(hex, () => !(--left) && (left = dig));
+    const mapped = this.mapIter(grouped, group => parseInt(group.join(''), 16));
+
+    let at, idx, p = root, ctx, dim = [];
+
+    for (idx of mapped) {
+      ctx = p;
+      at = p[idx];
+      const d = --depth;
+
+      if (d && !at) {
+        if (create) {
+          p[idx] = at = $.make();
+          at[this.insortDepth] = d;
+          at[this.insortMag] = mag;
+        } else return;
+      }
+
+      p = at;
+      dim.push(idx);
+    }
+
+    return {root, ctx, idx, dim};
+  },
+
+  *partialInsortEntries(insort, pfx) {
+    const mag = insort[this.insortMag];
+    const depth = insort[this.insortDepth];
+    if (!depth) throw new Error('insort: not compatible');
+
+    if (depth > 1) {
+      const nextDepth = depth - 1;
+
+      for (const [k, v] of this.entries(insort)) {
+        if (!v || v[this.insortDepth] !== nextDepth) throw new Error('insort: malformed');
+        yield* this.partialInsortEntries(v, [...pfx, (+k).toString(16).padStart(mag, '0')]);
+      }
+    } else {
+      for (const [k, v] of this.entries(insort)) {
+        const idx = BigInt(['0x', ...pfx, (+k).toString(16).padStart(mag, '0')].join(''));
+        yield [idx, v];
+      }
+    }
+  },
+
+  *insortEntries(insort) {
+    yield* this.partialInsortEntries(insort, []);
+  },
+
+  //TODO: insortEntries(insort, from, to)
+
   get(object, ...walk) {
-    let p = object;
+    let p = object, pp, ps;
 
     for (const step of walk) {
       if (p == null) return p;
-      p = p[step];
+      if (step == null) return p;
+
+      if (typeof step === 'bigint' || step.ins) {
+        if (!pp) throw new Error('insort must have root object');
+        const got = this.walkInsort(pp, ps, step.ins || step);
+        if (!got) return null;
+        pp = got.ctx; ps = got.idx;
+      } else {
+        pp = p; ps = step;
+      }
+
+      p = pp[ps];
     }
 
     return p;
   },
 
   getDef(object, ...walk) {
-    let p = object;
+    let p = object, pp, ps;
     const value = walk.pop();
 
     for (const step of walk) {
-      if (p == null || !(step in p)) return value;
-      p = p[step];
+      if (p == null) return value;
+      if (step == null) return p;
+
+      if (typeof step === 'bigint' || step.ins) {
+        if (!pp) throw new Error('insort must have root object');
+        const got = this.walkInsort(pp, ps, step.ins || step);
+        if (!got) return value;
+        pp = got.ctx; ps = got.idx;
+      } else {
+        pp = p; ps = step;
+      }
+
+      if (!(ps in pp)) return value;
+      p = pp[ps];
     }
 
     return p;
   },
 
-  ensure(object, ...walk) {
-    let p = object;
+  ensureEx(object, ...walk) {
+    let p = object, pp, ps, step;
     if (p == null) return p;
     let n = null, pr = null;
-    const l = walk.length - 1;
+    const l = walk.length;
+    const ll = l - 1;
 
     for (let i = 0; i < l; i++) {
-      const step = walk[i];
-      const n = p[step];
-      if (n == null) p[step] = p = typeof walk[i+1] === 'number' ? [] : this.make();
+      step = walk[i];
+
+      if (typeof step === 'bigint' || step.ins) {
+        if (!pp) throw new Error('insort must have root object');
+        const got = this.walkInsort(pp, ps, step.ins || step, {mag: 3});
+        pp = got.ctx; ps = got.idx;
+      } else {
+        pp = p; ps = step;
+      }
+
+      if (i === ll) break;
+      const n = pp[ps];
+      if (n == null) pp[ps] = p = typeof walk[i+1] === 'number' ? [] : this.make();
       else p = n;
     }
 
-    return p;
+    return {ctx: pp, idx: ps};
+  },
+
+  ensure(object, ...walk) {
+    const {ctx} = this.ensureEx(object, ...walk);
+    return ctx;
   },
 
   set(object, ...walk) {
     if (object == null) return object;
     const value = walk.pop();
-    const p = this.ensure(object, ...walk);
-    const last = walk.pop();
-    p[last] = value;
-    return p;
+    const {ctx, idx} = this.ensureEx(object, ...walk);
+    ctx[idx] = value;
+    return ctx;
   },
 
   setDef(object, ...walk) {
     if (object == null) return object;
     const value = walk.pop();
-    const p = this.ensure(object, ...walk);
-    const last = walk.pop();
-    if (!(last in p)) { p[last] = value; return value; }
-    return p[last];
+    const {ctx, idx} = this.ensureEx(object, ...walk);
+    if (!(idx in ctx)) { ctx[idx] = value; return value; }
+    return ctx[idx];
   },
 
   setAdd(object, ...walk) {
     if (object == null) return object;
     const value = walk.pop();
-    const p = this.ensure(object, ...walk);
-    const last = walk.pop();
+    const {ctx: p, idx: last} = this.ensureEx(object, ...walk);
 
     if (last in p) {
       if (value instanceof Array) this.append(p[last], value);
@@ -451,8 +595,7 @@ module.exports = {
   setPush(object, ...walk) {
     if (object == null) return object;
     const value = walk.pop();
-    const p = this.ensure(object, ...walk);
-    const last = walk.pop();
+    const {ctx: p, idx: last} = this.ensureEx(object, ...walk);
     let arr = p[last];
     if (!(arr instanceof Array)) p[last] = arr = [value];
     else arr.push(value);
@@ -462,8 +605,7 @@ module.exports = {
   setUnshift(object, ...walk) {
     if (object == null) return object;
     const value = walk.pop();
-    const p = this.ensure(object, ...walk);
-    const last = walk.pop();
+    const {ctx: p, idx: last} = this.ensureEx(object, ...walk);
     let arr = p[last];
     if (!(arr instanceof Array)) p[last] = arr = [value];
     else arr.unshift(value);
@@ -473,8 +615,7 @@ module.exports = {
   setExtend(object, ...walk) {
     if (object == null) return object;
     const value = walk.pop();
-    const p = this.ensure(object, ...walk);
-    const last = walk.pop();
+    const {ctx: p, idx: last} = this.ensureEx(object, ...walk);
     let obj = p[last];
     if (!(typeof obj === 'object')) p[last] = obj = this.$.make(value);
     else Object.assign(obj, value);
@@ -484,8 +625,7 @@ module.exports = {
   setDefaults(object, ...walk) {
     if (object == null) return object;
     const value = walk.pop();
-    const p = this.ensure(object, ...walk);
-    const last = walk.pop();
+    const {ctx: p, idx: last} = this.ensureEx(object, ...walk);
     let obj = p[last];
     if (!(typeof obj === 'object')) p[last] = obj = this.$.make(value);
     else this.defaults(obj, value);
@@ -609,11 +749,11 @@ module.exports = {
     let idx = 0;
 
     for (const item of iter) {
-      cur.push(item);
-
-      if (func.call(this, item, cur, iter)) {
+      if (func.call(this, item, cur, idx++, iter)) {
         yield cur;
-        cur = [];
+        cur = [item];
+      } else {
+        cur.push(item);
       }
     }
 
@@ -625,11 +765,11 @@ module.exports = {
     let idx = 0;
 
     for await (const item of iter) {
-      cur.push(item);
-
-      if (await func.call(this, item, cur, iter)) {
+      if (await func.call(this, item, cur, idx++, iter)) {
         yield cur;
-        cur = [];
+        cur = [item];
+      } else {
+        cur.push(item);
       }
     }
 

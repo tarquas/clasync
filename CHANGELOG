@@ -383,3 +383,13 @@ Web (web/index.js; web/api.js; web/rest.js):
 - Add support for iterative response;
 - Add `.router` for endpoints;
 - Add support for `.notFound()` method in Rest.
+
+*** Version 0.10.7 - 2021-03-20
+
+Main module (index.js; static/main.js):
+- Reset `$.mainInstance` on finalize;
+- Add `$.mainClass`.
+
+Functional (static/func.js):
+- Add `$.walkInsort()', `$.insortEntries()`;
+- Add `$.ensureEx()`.

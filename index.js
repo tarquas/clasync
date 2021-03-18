@@ -141,6 +141,7 @@ class Clasync extends ClasyncBase {
 
     inst.finaled = true;
     inst.setFinaled(reason);
+    if (t === this.mainInstance) this.mainInstance = null;
   }
 
   static sub(config) {
