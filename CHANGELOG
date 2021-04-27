@@ -393,3 +393,11 @@ Main module (index.js; static/main.js):
 Functional (static/func.js):
 - Add `$.walkInsort()', `$.insortEntries()`;
 - Add `$.ensureEx()`.
+
+*** Version 0.10.9 - 2021-04-27
+
+Web API (web/api.js):
+- Add CORS options `.corsOpts` and compression options `.compressOpts`.
+
+Package (package.json):
+- Fix dep versions. Disallow automatic updates.

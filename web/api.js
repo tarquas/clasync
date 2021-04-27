@@ -24,10 +24,14 @@ class WebApi extends Web {
     this.use(cors({
       allowedHeaders: this.allowedHeaders || ['Content-Type', 'Authorization'],
       exposedHeaders: this.exposedHeaders || ['Content-Type', 'Date'],
-      origin: this.origin
+      origin: this.origin,
+      ...this.corsOpts,
     }));
 
-    if (this.compression) this.use(compression({level: this.compression}));
+    if (this.compression) this.use(compression({
+      level: this.compression,
+      ...this.compressOpts,
+    }));
   }
 
   async notFoundMiddleware$(req, res) {
