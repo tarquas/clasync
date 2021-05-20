@@ -15,6 +15,7 @@ class Discovery extends MqDisp {
     instId,
     info
   }) {
+    if (!this.instances) return;
     const instInfo = this.instances[instId];
     if (!instInfo) return;
 
@@ -38,6 +39,7 @@ class Discovery extends MqDisp {
   instanceDown({
     instId
   }) {
+    if (!this.instances) return;
     const info = this.instances[instId];
     if (!info) return;
     delete this.instances[instId];
@@ -83,33 +85,43 @@ class Discovery extends MqDisp {
     if (cancel) return;
 
     const allInfo = this.instanceUpdate({instId, info: Object.assign(info, modify)});
-    this.emit('up', {instId, info: allInfo});
+    if (allInfo) this.emit('up', {instId, info: allInfo});
   }
 
   async ['SUB instanceDown']({
     instId
   }) {
     if (!this.instances) return;
-    const args = {instId, reason: 'managedShutdown'};
+    const info = this.instances[instId];
+    const args = {instId, info, reason: 'managedShutdown'};
     this.instanceDown(args);
-    this.emit('down', args);
+    if (info) this.emit('down', args);
   }
 
-  async checkExpires() {
+  *listIter() {
     const now = +new Date();
     const insts = this.instances;
+    if (!insts) return;
 
     for (const instId in insts) {
       if (Object.hasOwnProperty.call(insts, instId)) {
         const info = insts[instId];
 
         if (now - info.updatedAt > this.$.msecAliveExpires) {
-          const args = {instId, reason: 'pingTimeout'};
+          const args = {instId, info, reason: 'pingTimeout'};
           this.instanceDown(args);
           this.emit('down', args);
+        } else {
+          yield [instId, info];
         }
       }
     }
+  }
+
+  checkExpires() {
+    if (!this.instances) return false;
+    for (const inst of this.listIter());
+    return true;
   }
 
   async ['SUB pollInstances']() {
@@ -119,8 +131,8 @@ class Discovery extends MqDisp {
     await this.pub('instanceUp', {instId: this.instId, info});
   }
 
-  async listInstances() {
-    await this.checkExpires();
+  listInstances() {
+    this.checkExpires();
     return this.instances;
   }
 
@@ -163,6 +175,12 @@ class Discovery extends MqDisp {
     Object.assign(this.info, {createdAt: new Date()});
     this.instanceUpdate({instId});
     await this.keepAliveBound(this.info);
+    setTimeout(this.checkExpiresJob, this.$.msecAliveExpires);
+  }
+
+  checkExpiresJob$() {
+    if (!this.checkExpires()) return;
+    setTimeout(this.checkExpiresJob, this.$.msecAliveExpires);
   }
 
   async afterInit() {
@@ -170,14 +188,15 @@ class Discovery extends MqDisp {
   }
 
   async final() {
+    this.instances = null;
     this.isAlive = false;
     await this.pub('instanceDown', {instId: this.instId});
     delete this.keepAliveBound;
   }
 }
 
-Discovery.msecPingAlive = 60000;
+Discovery.msecPingAlive = 30000;
 Discovery.msecPingRetry = 5000;
-Discovery.msecAliveExpires = 90000;
+Discovery.msecAliveExpires = 60000;
 
 module.exports = Discovery;

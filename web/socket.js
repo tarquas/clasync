@@ -43,7 +43,7 @@ class WebSocket extends Clasync.Emitter {
     });
 
     if (!result) return result;
-    if (result.error) throw result.error;
+    if (result.error) throw new Error(result.error);
     return result.data;
   }
 
@@ -256,11 +256,19 @@ class WebSocket extends Clasync.Emitter {
   }
 
   async join(rooms) {
-    await util.promisify(this.socket.join).call(this.socket, rooms);
+    return await this.socket.join(rooms);
   }
 
   async leave(room) {
-    await util.promisify(this.socket.leave).call(this.socket, room);
+    return await this.socket.leave(room);
+  }
+
+  emit(event, msg) {
+    return this.socket.emit(event, msg);
+  }
+
+  to(rooms, event, msg) {
+    return this.io.to(rooms).emit(event, msg);
   }
 }
 

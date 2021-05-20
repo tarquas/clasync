@@ -790,6 +790,13 @@ module.exports = {
     yield* this.chunkByAsync(iter, func);
   },
 
+  /*findIter(iter, condFn) {
+    if (typeof condFn === 'function') {
+      for (const item of iter) {
+        if ()
+      }
+  },*/
+
   *stopIter(iter, condFn) {
     for (const item of iter) {
       if (condFn.call(this, item, iter)) break;

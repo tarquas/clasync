@@ -401,3 +401,21 @@ Web API (web/api.js):
 
 Package (package.json):
 - Fix dep versions. Disallow automatic updates.
+
+*** Version 0.10.10 - 2021-05-21
+
+Package (package.json):
+- Upgraded versions to known latest stable, including `socket.io`.
+
+MQ Discovery (mq/discovery.js):
+- Improved stability;
+- Add `.listIter()`;
+- Made `.checkExpires()` and `.listInstances()` sync;
+- Changed default `$.msecPingAlive` and `$.msecAliveExpires`.
+
+MQ Mongo-based (mq/mongo/):
+- Redis `.pub()` and `.sub()` are now async and awaiting acknowledge before return;
+- Fix finalization bug.
+
+Web (web/socket.js):
+- Aligned to Socket.io version 4.

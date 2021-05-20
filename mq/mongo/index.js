@@ -51,7 +51,8 @@ class MqMongo extends Clasync.Emitter {
     if (this.finishing) return null;
 
     if (this.redisPub) {
-      this.redisPub.publish(event, JSON.stringify(payload));
+      const json = JSON.stringify(payload);
+      await new Promise(ok => this.redisPub.publish(event, json, ok));
       return {event, message: payload};
     }
 
@@ -66,7 +67,7 @@ class MqMongo extends Clasync.Emitter {
     return inserted;
   }
 
-  sub(event, onData) {
+  async sub(event, onData) {
     if (this.finishing) return null;
     const workerId = this.workerIdNext++;
     const object = {sub: event};
@@ -74,7 +75,10 @@ class MqMongo extends Clasync.Emitter {
     let subHandlers = this.subs[event];
 
     if (!subHandlers) {
-      if (this.redisSub) this.redisSub.subscribe(event);
+      if (this.redisSub) {
+        await new Promise(ok => this.redisSub.subscribe(event, ok));
+      }
+
       this.subs[event] = subHandlers = this.$.makeObject();
     }
 
@@ -627,7 +631,8 @@ class MqMongo extends Clasync.Emitter {
           let wait = this.subWait[event];
           if (wait) await wait.promise;
           if (this.finishing) return delete this.subWait[event];
-          let process = subHandlers[workerId].call(this, message);
+          const subh = subHandlers[workerId];
+          let process = subh && subh.call(this, message);
 
           if (process instanceof Promise) {
             this.subWait[event] = wait = {};
