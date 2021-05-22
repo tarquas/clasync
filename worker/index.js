@@ -6,7 +6,7 @@ const ClasyncEmitter = require('../emitter');
 class Worker extends ClasyncEmitter {
   static get Pool() { return require('./pool'); }
 
-  static get type() { return 'worker'; }
+  static type = 'worker';
 
   async init() {
     if (isMaster) throw new Error('Referencing Worker class from master process is not allowed');

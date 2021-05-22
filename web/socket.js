@@ -1,13 +1,13 @@
-const Clasync = require('..');
+const $ = require('..');
 const socketIo = require('socket.io');
 const amqpAdapter = require('./socket-mq');
 const util = require('util');
 
-class WebSocket extends Clasync.Emitter {
-  // prefix -- path to endpoint
+class WebSocket extends $.Emitter {
+  prefix = '/socket';  // prefix -- path to endpoint
   // mq -- optional Mq instance to dispatch within a cluster
 
-  static get type() { return 'socket'; }
+  static type = 'socket';
 
   static get Mq() { return WebSocket.Mq = require('./socket-mq'); }
 
@@ -154,8 +154,6 @@ class WebSocket extends Clasync.Emitter {
     await context.connectReady;
   }
 
-  get room() { return null; }
-
   async onConnection(socket) {
     let context = this.socketContexts[socket.id];
     if (context) return context;
@@ -198,8 +196,6 @@ class WebSocket extends Clasync.Emitter {
     delete this.socketSubs;
   }
 
-  get prefix() { return '/socket'; }
-
   attachToServers(io) {
     if (this.web.http) io.attach(this.web.http);
     if (this.web.https && this.web.https !== this.web.http) io.attach(this.web.https);
@@ -209,31 +205,33 @@ class WebSocket extends Clasync.Emitter {
     const {prefix, mqPrefix} = this;
 
     const {binds} = this.web.$;
-    const bind = `WEBSOCKET ${prefix}`;
+    const bind = `WEBSOCKET ${this.web.bind}${this.web.prefix}${prefix}`;
     let io = binds[bind];
 
     if (!io) {
       this.primary = true;
 
       binds[bind] = io = socketIo({
-        path: `${this.web._prefix}${prefix}`,
+        path: `${this.web.prefix}${prefix}`,
         pingInterval: this.pingInterval || this.$.defaultPingInterval,
         pingTimeout: this.pingTimeout || this.$.defaultPingTimeout,
         transports: ['websocket']
       });
 
-      if (this.mq) {
-        await this.mq[Clasync.ready];
-        io.adapter(amqpAdapter(this.mq, {prefix: mqPrefix || ''}));
+      if (this.adapter) {
+        await this.adapter.mq[$.ready];
+        this.adapterMaker = amqpAdapter(this.adapter.mq, this.adapter.opts);
+        io.adapter(this.adapterMaker);
       }
 
       this.attachToServers(io);
+      io.httpServer = null;
     }
 
     Object.assign(this, {
       io,
-      subscriptions: this.$.makeObject(),
-      socketContexts: this.$.makeObject()
+      subscriptions: this.$.make(),
+      socketContexts: this.$.make()
     });
 
     this.addSubscriptions();
@@ -248,6 +246,7 @@ class WebSocket extends Clasync.Emitter {
   }
 
   async final() {
+    if (this.adapterMaker) await $.all($.mapIter(this.adapterMaker.adapters, adapter => adapter.finishMq()));
     if (this.primary) await util.promisify(this.io.close).call(this.io);
     this.removeSubscriptions();
     delete this.io;

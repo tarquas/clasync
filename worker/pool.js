@@ -4,7 +4,7 @@ const ClasyncEmitter = require('../emitter');
 class WorkerPool extends ClasyncEmitter {
   // filename, min, max, opt, timeout, timeoutErr
 
-  static get type() { return 'workerPool'; }
+  static type = 'workerPool';
 
   async init() {
     this.nextWorkerId = 0;

@@ -5,6 +5,7 @@ const httpoly = require('httpolyglot');
 const http = require('http');
 const https = require('https');
 const util = require('util');
+const os = require('os');
 const body = require('body-parser');
 const Multer = require('multer');
 
@@ -13,9 +14,9 @@ class Web extends Clasync.Emitter {
   // httpOpts : HTTP connection options
   // httpsBind : a HTTPS port or host:port to listen
   // httpsOpts : HTTPS connection options
-  // prefix : prefix paths with given string
+  prefix = '';  // prefix : prefix paths with given string
 
-  static get type() { return 'web'; }
+  static type = 'web';
 
   static get Api() { return require('./api'); }
   static get Rest() { return require('./rest'); }
@@ -48,8 +49,8 @@ class Web extends Clasync.Emitter {
   }
 
   use(middleware) {
-    if (!this._prefix) return this.router.use(middleware);
-    return this.router.use(this._prefix, middleware);
+    if (!this.prefix) return this.router.use(middleware);
+    return this.router.use(this.prefix, middleware);
   }
 
   async express(middleware, req) {
@@ -101,8 +102,7 @@ class Web extends Clasync.Emitter {
   }
 
   async init() {
-    this._prefix = this.prefix || '';
-    const multer = Multer({dest: '/tmp', limits: this.limits});
+    const multer = Multer({dest: os.tmpdir(), limits: this.limits});
     this.bind = this.httpBind || this.httpsBind;
     this.createServers();
   }

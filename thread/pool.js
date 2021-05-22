@@ -11,7 +11,7 @@ const ClasyncEmitter = require('../emitter');
 class ThreadPool extends ClasyncEmitter {
   // filename, min, max, opt, timeout, timeoutErr
 
-  static get type() { return 'threadPool'; }
+  static type = 'threadPool';
 
   async init() {
     this.nextWorkerId = 0;

@@ -1,131 +1,154 @@
 const {Adapter} = require('socket.io-adapter');
-const DbMongo = require('../db/mongo');
+const $ = require('../db/mongo');
 
-const adapterMaker = (mq, options) => {
-  const opts = {
-    channelSeperator: '#',
-    prefix: mq.prefix || '',
-    ...options
-  };
+class MqAdapter extends Adapter {
+  constructor(nsp, mq, options) {
+    super(nsp);
 
-  const myId = DbMongo.newShortId();
-  const {prefix} = opts;
+    this.opts = {
+      channelSeperator: '#',
+      prefix: mq.prefix || '',
+      ...options,
+    };
 
-  const getChannelName = (...args) => (args.join(opts.channelSeperator) + opts.channelSeperator);
+    this.myId = $.newShortId();
+    //this.encoder = this.nsp.adapter.encoder;
+    this.event = `${this.opts.prefix}-socket.io`;
+    this.subs = $.make();
+    this.mq = mq;
+    this.onmessageBound = this.onmessage.bind(this);
+    this.globalRoomName = this.getChannelName(this.event, this.nsp.name);
+    this.connected = this.initMq();
+  }
 
-  class MqAdapter extends Adapter {
-    constructor(nsp) {
-      super(nsp);
-      this.encoder = this.nsp.adapter.encoder;
-      this.event = `${prefix}-socket.io`;
-      this.subs = DbMongo.makeObject();
-      this.mq = mq;
-      this.onmessageBound = this.onmessage.bind(this);
-      this.connected = this.initMq();
-    }
+  getChannelName(...args) {
+    return args.join(this.opts.channelSeperator) + this.opts.channelSeperator;
+  }
 
-    async initMq() {
-      this.globalRoomName = getChannelName(this.event, this.nsp.name);
-      this.globalSubId = await this.mq.sub(this.globalRoomName, this.onmessageBound);
-    }
+  async initMq() {
+    await this.mq[$.ready];
+    this.globalSubId = await this.mq.sub(this.globalRoomName, this.onmessageBound);
+  }
 
+  async finishMq() {
+    if (this.globalSubId) await this.mq.unhandle(this.globalSubId);
+    this.globalSubId = null;
 
-    onmessage(msg) {
-      if (this.myId === msg.id || !msg.id) return;
-      const args = msg.data;
-      const packet = args[0];
-      if (packet && !packet.nsp) packet.nsp = '/';
-      if (!packet || packet.nsp !== this.nsp.name) return;
-      args.push(true);
-      super.broadcast(args);
-    }
+    if (this.subs) await $.all($.mapIter($.values(this.subs), id => this.mq.unhandle(id)));
+    this.subs = null;
+  }
 
-    add(id, room, fn) {
-      return this.addAll(id, [room], fn);
-    }
+  onmessage({id, data: [packet, bOpts]}) {
+    if (!id || id === this.myId) return;
 
-    async addAll(id, rooms, fn) {
-      try {
-        await this.connected;
+    if (packet && !packet.nsp) packet.nsp = '/';
+    if (!packet || packet.nsp !== this.nsp.name) return;
 
-        await DbMongo.all(DbMongo.mapIter(rooms, async (room) => {
-          const needToSubscribe = !this.rooms.has(room);
-          if (!needToSubscribe) return;
-          const event = getChannelName(this.event, this.nsp.name, room);
-          this.subs[event] = await this.mq.sub(event, this.onmessageBound);
-        }));
+    bOpts.rooms = new Set(bOpts.rooms);
+    bOpts.except = new Set(bOpts.except);
 
-        super.addAll(id, rooms);
+    super.broadcast(packet, bOpts);
+  }
 
-        if (fn) fn();
-      } catch (err) {
-        this.emit('error', err);
-        if (fn) fn(err); else throw err;
-      }
-    }
+  add(id, room, fn) {
+    return this.addAll(id, [room], fn);
+  }
 
-    async broadcast(packet, bOpts, remote) {
-      super.broadcast(packet, bOpts);
+  async addAll(id, rooms, fn) {
+    try {
       await this.connected;
 
-      if (!remote) {
-        const data = [packet, bOpts];
+      if (this.subs) await $.all($.mapIter(rooms, async (room) => {
+        const needToSubscribe = !this.rooms.has(room);
+        if (!needToSubscribe) return;
+        const event = this.getChannelName(this.event, this.nsp.name, room);
+        this.subs[event] = await this.mq.sub(event, this.onmessageBound);
+      }));
 
-        if (bOpts.rooms && bOpts.rooms.length) {
-          const all = await DbMongo.all(DbMongo.mapIter(bOpts.rooms, async (room) => {
-            const event = getChannelName(this.event, packet.nsp, room);
-            await this.mq.pub(event, {id: myId, data});
-          }));
+      super.addAll(id, rooms);
 
-          return all;
-        }
-
-        const result = await this.mq.pub(this.globalRoomName, {id: myId, data: [packet, opts]});
-        return result;
-      }
-
-      return null;
-    }
-
-    async del(id, room, fn) {
-      try {
-        await this.connected;
-
-        if (this.rooms.has(room)) {
-          const event = getChannelName(this.event, this.nsp.name, room);
-          await this.mq.unhandle(this.subs[event]);
-        }
-
-        super.del(id, room);
-        if (fn) fn();
-      } catch (err) {
-        this.emit('error', err);
-        if (fn) fn(err);
-      }
-    }
-
-    async delAll(id, fn) {
-      try {
-        await this.connected;
-        const rooms = this.sids.get(id);
-
-        if (rooms) await DbMongo.all(DbMongo.mapIter(DbMongo.keys(rooms), async (roomId) => {
-          if (this.rooms.has(roomId)) {
-            const event = getChannelName(this.event, this.nsp.name, roomId);
-            await this.mq.unhandle(this.subs[event]);
-          }
-        }));
-
-        super.delAll(id);
-        if (fn) fn();
-      } catch (err) {
-        this.emit('error', err);
-        if (fn) fn(err);
-      }
+      if (fn) fn();
+    } catch (err) {
+      this.emit('error', err);
+      if (fn) fn(err); else throw err;
     }
   }
 
-  return MqAdapter;
+  async broadcast(packet, bOpts, remote) {
+    super.broadcast(packet, bOpts);
+    await this.connected;
+    bOpts.rooms = Array.from(bOpts.rooms);
+    bOpts.except = Array.from(bOpts.except);
+
+    if (!remote) {
+      const data = [packet, bOpts];
+
+      if (bOpts.rooms && bOpts.rooms.length) {
+        const all = await $.all($.mapIter(bOpts.rooms, async (room) => {
+          const event = this.getChannelName(this.event, packet.nsp, room);
+          await this.mq.pub(event, {id: this.myId, data});
+        }));
+
+        return all;
+      }
+
+      const result = await this.mq.pub(this.globalRoomName, {id: this.myId, data});
+      return result;
+    }
+
+    return null;
+  }
+
+  async del(id, room, fn) {
+    try {
+      await this.connected;
+
+      if (this.subs && this.rooms.has(room)) {
+        const event = this.getChannelName(this.event, this.nsp.name, room);
+        await this.mq.unhandle(this.subs[event]);
+        delete this.subs[event];
+      }
+
+      super.del(id, room);
+      if (fn) fn();
+    } catch (err) {
+      this.emit('error', err);
+      if (fn) fn(err);
+    }
+  }
+
+  async delAll(id, fn) {
+    try {
+      await this.connected;
+      const rooms = this.sids.get(id);
+
+      if (this.subs && rooms) await $.all($.mapIter($.keys(rooms), async (roomId) => {
+        if (this.rooms.has(roomId)) {
+          const event = this.getChannelName(this.event, this.nsp.name, roomId);
+          await this.mq.unhandle(this.subs[event]);
+          delete this.subs[event];
+        }
+      }));
+
+      super.delAll(id);
+      if (fn) fn();
+    } catch (err) {
+      this.emit('error', err);
+      if (fn) fn(err);
+    }
+  }
+}
+
+const adapterMaker = (mq, options) => {
+  const maker = function (nsp) {
+    const adapter = new MqAdapter(nsp, mq, options);
+    maker.adapters.add(adapter);
+    return adapter;
+  };
+
+  maker.adapters = new Set();
+  return maker;
 };
 
+adapterMaker.createAdapter = adapterMaker;
 module.exports = adapterMaker;

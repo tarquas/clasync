@@ -10,7 +10,7 @@ const ClasyncEmitter = require('../emitter');
 class Thread extends ClasyncEmitter {
   static get Pool() { return require('./pool'); }
 
-  static get type() { return 'thread'; }
+  static type = 'thread';
 
   async init() {
     if (!threads) throw new Error('worker_threads module is not supported. please use Node > 11.10 to start this app');

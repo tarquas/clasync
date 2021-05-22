@@ -154,18 +154,11 @@ class Clasync extends ClasyncBase {
 }
 
 function ClasyncBase(config, $$) {
-  Object.defineProperty(
-    this,
-    Clasync.ready,
-
-    {
-      writable: false,
-      value: ClasyncCtor(Object.assign(this, config), $$)
-    }
-  );
+  const ready = ClasyncCtor(this, config, $$);
+  Object.defineProperty(this, Clasync.ready, {writable: false, value: ready});
 }
 
-async function ClasyncCtor(t, $$) {
+async function ClasyncCtor(t, cfg, $$) {
   try {
     const inits = [];
     const afterInits = [];
@@ -184,6 +177,7 @@ async function ClasyncCtor(t, $$) {
     });
 
     await t.$.$.tick();
+    Object.assign(t, cfg);
 
     for (let o = t; o; o = Object.getPrototypeOf(o)) {
       up.unshift(o);
@@ -249,8 +243,8 @@ function bind$(obj, inst) {
 module.exports = Clasync.$;
 
 Clasync.App = class App extends Clasync.Emitter {
-  static get type() { return 'app'; }
-  static configure() { return {}; }
+  static type = 'app';
+  static configure = {};
 };
 
 Clasync.autorun().catch(err => Clasync.logFatal(err));

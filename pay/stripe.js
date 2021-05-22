@@ -4,7 +4,7 @@ const stripe = require('stripe');
 class Pay extends Clasync.Emitter {
   // key: Stripe secret key (sk_...)
 
-  static get type() { return 'pay'; }
+  static type = 'pay';
 
   static promisifyAll(from, to = {}) {
     for (const key of Reflect.ownKeys(from)) {

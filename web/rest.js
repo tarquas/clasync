@@ -2,9 +2,9 @@ const Clasync = require('..');
 
 class WebRest extends Clasync.Emitter {
   // web -- webserver (class Web) instance
-  // prefix -- REST group prefix
+  prefix = '';  // REST group prefix
 
-  static get type() { return 'rest'; }
+  static type = 'rest';
 
   async express(middleware, req) {
     return this.web.express(middleware, req);
@@ -72,14 +72,10 @@ class WebRest extends Clasync.Emitter {
     if (func) {
       func.call(
         this.web.router,
-        `${this.web._prefix}${this._prefix}${path}`,
+        `${this.web.prefix}${this.prefix}${path}`,
         this.wrapToMiddleware(handler, middleware)
       );
     }
-  }
-
-  async init() {
-    this._prefix = this.prefix || '';
   }
 
   async afterInit() {

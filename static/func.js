@@ -258,6 +258,28 @@ module.exports = {
     }
   },
 
+  xorIter(iter1, iter2) {
+    const xor = new Set();
+
+    for (const key of this.flattenIter(iter1, iter2)) {
+      if (xor.has(key)) xor.delete(key);
+      else xor.add(key);
+    }
+
+    return xor;
+  },
+
+  async xorAsync(iter1, iter2) {
+    const xor = new Set();
+
+    for await (const key of this.flattenAsync(iter1, iter2)) {
+      if (xor.has(key)) xor.delete(key);
+      else xor.add(key);
+    }
+
+    return xor;
+  },
+
   //
 
   keyValueString([k, v]) {

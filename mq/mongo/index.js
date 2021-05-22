@@ -597,7 +597,11 @@ class MqMongo extends Clasync.Emitter {
 
         if (object.sub) {
           delete this.subs[object.sub];
-          if (this.redisSub) this.redisSub.unsubscribe(object.sub);
+
+          if (this.redisSub) {
+            await new Promise(ok => this.redisSub.unsubscribe(object.sub, ok));
+          }
+
           object.sub = null;
         }
       }
@@ -685,7 +689,7 @@ class MqMongo extends Clasync.Emitter {
             {
               capped: true,
               size: this.$.pubsubCapSize,
-              strict: false
+              //strict: false
             }
           );
 

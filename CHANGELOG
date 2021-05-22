@@ -419,3 +419,19 @@ MQ Mongo-based (mq/mongo/):
 
 Web (web/socket.js):
 - Aligned to Socket.io version 4.
+
+*** Version 0.11.0 - 2021-05-23
+
+Async Classes (index.js):
+- Assign config just before `.init()` after sync class tick.
+
+Web Socket MQ Adapter (web/socket-mq.js):
+- Update for `socket.io` v.4.
+
+Web Socket (web/socket.js):
+- Remove `.mq`, `.mqPrefix`;
+- Add `.adapter: {mq, opts: {prefix}}`;
+- Fix multiple socket finalization by a hack `io.httpServer = null`.
+
+Functional (static/func.js):
+- Add `$.xorIter()`, `$.xorAsync()`.

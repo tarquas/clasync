@@ -2,37 +2,37 @@ const Clasync = require('..');
 
 class MqDisp extends Clasync.Emitter {
   // mq -- message queue (class Mq) instance
-  // prefix -- dispatcher group prefix
+  prefix = '';  // dispatcher group prefix
 
-  static get type() { return 'mqDisp'; }
+  static type = 'mqDisp';
 
   async pub(event, data, opts) {
-    const fullName = `${this._prefix}${event}`;
+    const fullName = `${this.prefix}${event}`;
     return await this.mq.pub(fullName, data, opts);
   }
 
   async push(queue, data, opts) {
-    const fullName = `${this._prefix}${queue}`;
+    const fullName = `${this.prefix}${queue}`;
     return await this.mq.push(fullName, data, opts);
   }
 
   async rpc(queue, data, opts) {
-    const fullName = `${this._prefix}${queue}`;
+    const fullName = `${this.prefix}${queue}`;
     return await this.mq.rpc(fullName, data, opts);
   }
 
   sub(event, onData, opts) {
-    const fullName = `${this._prefix}${event}`;
+    const fullName = `${this.prefix}${event}`;
     return this.mq.sub(fullName, onData, opts);
   }
 
   worker(queue, onData, opts) {
-    const fullName = `${this._prefix}${queue}`;
+    const fullName = `${this.prefix}${queue}`;
     return this.mq.worker(fullName, onData, opts);
   }
 
   rpcworker(queue, onData, opts) {
-    const fullName = `${this._prefix}${queue}`;
+    const fullName = `${this.prefix}${queue}`;
     return this.mq.rpcworker(fullName, onData, opts);
   }
 
@@ -42,7 +42,7 @@ class MqDisp extends Clasync.Emitter {
     const handler = customHandler || this[action];
     const func = this.mq[socket.toLowerCase()];
     if (!func) return;
-    const fullName = `${this._prefix}${queue}`;
+    const fullName = `${this.prefix}${queue}`;
 
     let ac = this.handlers[action];
     if (!ac) this.handlers[action] = ac = [];
@@ -80,8 +80,7 @@ class MqDisp extends Clasync.Emitter {
   }
 
   async init() {
-    this._prefix = this.prefix || '';
-    this.handlers = this.$.makeObject();
+    this.handlers = this.$.make();
   }
 
   async afterInit() {
