@@ -154,7 +154,7 @@ class Clasync extends ClasyncBase {
 }
 
 function ClasyncBase(config, $$) {
-  const ready = ClasyncCtor(this, config, $$);
+  const ready = ClasyncCtor(Object.assign(this, config), config, $$);
   Object.defineProperty(this, Clasync.ready, {writable: false, value: ready});
 }
 
