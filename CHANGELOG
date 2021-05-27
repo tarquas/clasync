@@ -435,3 +435,15 @@ Web Socket (web/socket.js):
 
 Functional (static/func.js):
 - Add `$.xorIter()`, `$.xorAsync()`.
+
+*** Version 0.11.2 - 2021-05-27
+
+Event Emitter (emitter.js):
+- Allow firing original events from object extensions.
+
+Overall (mq/; web/):
+- Default `Emitter` event handlers;
+- Allow loadtime action handler methods in subclasses.
+
+Functional (static/func.js):
+- Add `.scanObject()`, `.scanObjectAll()`.

@@ -2092,6 +2092,32 @@ module.exports = {
     return objs.reduce((a, b) => this.setTree(b, a, {unset: true, deep: true}), to);
   },
 
+  scanObject(to, obj, {rxName, rxType, rxCtorName} = {}) {
+    if (!to) to = this.make();
+
+    for (const k of Object.getOwnPropertyNames(obj)) {
+      if (k in to) continue;
+      if (rxName && !rxName.test(k)) continue;
+      const v = obj[k];
+      if (rxType && !rxType.test(typeof v)) continue;
+      if (rxCtorName && v && v.constructor && !rxCtorName.test(v.constructor.name)) continue;
+      to[k] = v;
+    }
+
+    return to;
+  },
+
+  scanObjectAll(obj, rx) {
+    const to = this.make();
+
+    while (obj) {
+      this.scanObject(to, obj, rx);
+      obj = Object.getPrototypeOf(obj);
+    }
+
+    return to;
+  },
+
   zipArray(...collate) {
     const result = [];
     const count = collate.map(array => array.length).reduce(this.max);

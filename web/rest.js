@@ -1,6 +1,6 @@
-const Clasync = require('..');
+const {$, Emitter} = require('..');
 
-class WebRest extends Clasync.Emitter {
+class WebRest extends Emitter {
   // web -- webserver (class Web) instance
   prefix = '';  // REST group prefix
 
@@ -63,10 +63,10 @@ class WebRest extends Clasync.Emitter {
     };
   }
 
-  addRoute(action, customHandler) {
+  addRoute(action, handler) {
     const [matched, method, path, middleware] = action.match(this.$.rxMethodPath) || [];
     if (!matched) return;
-    const handler = customHandler || this[action];
+
     const func = this.web.router[method.toLowerCase()];
 
     if (func) {
@@ -78,9 +78,16 @@ class WebRest extends Clasync.Emitter {
     }
   }
 
+  // TODO: .removeRoute(), .removeAllRoute()
+
+  static actionDesc = {
+    rxName: /^(use|get|head|post|put|patch|delete|connect|trace|options)\s/i,
+    rxType: /^function$/
+  };
+
   async afterInit() {
-    for (const action of Object.getOwnPropertyNames(Object.getPrototypeOf(this))) {
-      this.addRoute(action);
+    for (const [action, handler] of $.entries($.scanObjectAll(this, this.$.actionDesc))) {
+      this.addRoute(action, handler);
     }
 
     if (this.notFound) this.web.app.use(this.wrapToMiddleware(this.notFound));

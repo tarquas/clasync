@@ -37,6 +37,7 @@ class MqMongo extends Clasync.Emitter {
   // db - config to create DbMongo instance to use for queues
   // capDb - config to create DbMongo instance to use for events
   // redis - alternatively use redis for pubsub
+  prefix = ''; // if specified, will serve the specific common prefix for `Mq.Disp`
 
   static get type() { return 'mq'; }
 

@@ -21,14 +21,15 @@ class Clasync extends ClasyncBase {
         bind$(this, o);
       }
 
-      Clasync.staticSelfBound.set(this, true);
+      Clasync.staticSelfBound.add(this);
     }
 
     return this;
   }
 
-  static async setMainInstance(inst) {
+  static setMainInstance(inst) {
     Clasync.mainInstance = inst;
+    return inst;
   }
 
   static async subSetDep([k, v]) {
@@ -228,7 +229,7 @@ Clasync.debugTopics = (Clasync.debugMode || '').toString().match(Clasync.rxNestI
 Clasync.debugIndex = Clasync.invert(Clasync.debugTopics);
 
 Clasync.rxSelfBind = /^([^]+)\$$/;
-Clasync.staticSelfBound = new WeakMap();
+Clasync.staticSelfBound = new WeakSet();
 
 function bind$(obj, inst) {
   for (const name of Object.getOwnPropertyNames(inst)) {

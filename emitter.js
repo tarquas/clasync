@@ -3,7 +3,7 @@ let $;
 
 class ClasyncEmitter extends Clasync {
   async init() {
-    $.emitterEvents.set(this, this.$.makeObject());
+    this[$.emitterEvents] = this.$.make();
   }
 
   async final() {
@@ -11,7 +11,7 @@ class ClasyncEmitter extends Clasync {
   }
 
   on(event, handler, stage) {
-    const _emitterEvents = $.emitterEvents.get(this);
+    const _emitterEvents = this[$.emitterEvents];
     if (event == null) return Object.keys(_emitterEvents);
     let emitterEvents = _emitterEvents[event];
     let handlers;
@@ -46,7 +46,7 @@ class ClasyncEmitter extends Clasync {
   }
 
   off(event, handler) {
-    const _emitterEvents = $.emitterEvents.get(this);
+    const _emitterEvents = this[$.emitterEvents];
 
     if (event == null) {
       for (const event of Object.keys(_emitterEvents)) {
@@ -113,10 +113,10 @@ class ClasyncEmitter extends Clasync {
 }
 
 $ = Clasync.private({
-  emitterEvents: new WeakMap(),
+  emitterEvents: Symbol('emitterEvents'),
 
   emitEvent(event, ...args) {
-    const _emitterEvents = $.emitterEvents.get(this);
+    const _emitterEvents = this[$.emitterEvents];
     const emitterEvents = _emitterEvents[event];
     if (!emitterEvents) return false;
     const {byStages, stages} = emitterEvents;

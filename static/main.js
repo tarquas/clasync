@@ -43,11 +43,12 @@ const ClasyncMain = {
   async runMain() {
     let config = this.configure;
     if (!config) return;
+    let me;
 
     try {
       if (typeof config === 'function') config = config();
       if (typeof config.then === 'function') config = await config;
-      const me = new this(config);
+      me = new this(config);
       this.setMainInstance(me);
       const inst = me[this.instance];
 
@@ -91,7 +92,7 @@ const ClasyncMain = {
       this.throw(err, {title: 'MAIN EXCEPTION', exit: 1});
     }
 
-    const reason = await this.mainInstance[this.instance].waitFinaled;
+    const reason = !me ? 1 : await me[this.instance].waitFinaled;
     process.exit(reason);
   },
 

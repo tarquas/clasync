@@ -1,11 +1,16 @@
 const $ = require('..');
 const socketIo = require('socket.io');
+const socketIoClient = require('socket.io-client');
 const amqpAdapter = require('./socket-mq');
 const util = require('util');
 
 class WebSocket extends $.Emitter {
   prefix = '/socket';  // prefix -- path to endpoint
   // mq -- optional Mq instance to dispatch within a cluster
+
+  // Events:
+  async onConnect(req) { return await this.eventEmit('connect', {req, ctx: this}); }  // req
+  async onDisconnect(req) { return await this.eventEmit('disconnect', {req, ctx: this}); }  // req
 
   static type = 'socket';
 
@@ -80,16 +85,21 @@ class WebSocket extends $.Emitter {
     return bound;
   }
 
-  addSubscription(action, customHandler) {
+  addSubscription(action, handler) {
     const [matched, method, event, , nsp] = action.match(this.$.rxSocketSub) || [];
     if (!matched) return;
-    const handler = customHandler || this[action];
+
     this.addHandler(method.toUpperCase(), nsp, event, handler);
   }
 
+  static actionDesc = {
+    rxName: /^[!?\s\d\*]*(sub|worker|rpcworker)\s/i,
+    rxType: /^function$/
+  };
+
   addSubscriptions() {
-    for (const action of Object.getOwnPropertyNames(Object.getPrototypeOf(this))) {
-      this.addSubscription(action);
+    for (const [action, handler] of $.entries($.scanObjectAll(this, this.$.actionDesc))) {
+      this.addSubscription(action, handler);
     }
   }
 
@@ -145,7 +155,8 @@ class WebSocket extends $.Emitter {
     }
   }
 
-  async connect() {
+  async connect(r1, r2) {
+    return await this.onConnect(r1, r2);
   }
 
   async connected(socket) {
@@ -163,11 +174,11 @@ class WebSocket extends $.Emitter {
 
     Object.assign(context, {
       socket,
-      onDisconnect: this.onDisconnection.bind(context),
+      onDisconnectionBound: this.onDisconnection.bind(context),
       socketSubs: this.$.makeObject()
     });
 
-    socket.on('disconnect', context.onDisconnect);
+    socket.on('disconnect', context.onDisconnectionBound);
 
     try {
       context.connectReady = context.connect(context.req, context.req);
@@ -182,17 +193,18 @@ class WebSocket extends $.Emitter {
     }
   }
 
-  async disconnect() {
+  async disconnect(r1, r2) {
+    return await this.onDisconnect(r1, r2);
   }
 
   async onDisconnection() {
     await this.disconnect(this.req, this.req);
-    this.socket.removeListener('disconnect', this.onDisconnect);
+    this.socket.removeListener('disconnect', this.onDisconnectionBound);
     this.detachSubscriptions();
     this.socket.removeAllListeners();
     delete this.socketContexts[this.socket.id];
     delete this.socket;
-    delete this.onDisconnect;
+    delete this.onDisconnectionBound;
     delete this.socketSubs;
   }
 
@@ -203,6 +215,7 @@ class WebSocket extends $.Emitter {
 
   async afterInit() {
     const {prefix, mqPrefix} = this;
+    this.eventEmit = super.emit;
 
     const {binds} = this.web.$;
     const bind = `WEBSOCKET ${this.web.bind}${this.web.prefix}${prefix}`;
@@ -225,7 +238,7 @@ class WebSocket extends $.Emitter {
       }
 
       this.attachToServers(io);
-      io.httpServer = null;
+      io.httpServer = null;  // HACK: to allow multiple sockets to same server
     }
 
     Object.assign(this, {
@@ -275,5 +288,7 @@ WebSocket.defaultPingInterval = 25000;
 WebSocket.defaultPingTimeout = 60000;
 
 WebSocket.rxSocketSub = /^(\w+)\s+(\S+)(\s+(\/\S+))?((\s*>\s*[^\s>]+)*)$/;
+
+WebSocket.Client = socketIoClient;
 
 module.exports = WebSocket;
