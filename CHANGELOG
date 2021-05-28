@@ -436,7 +436,7 @@ Web Socket (web/socket.js):
 Functional (static/func.js):
 - Add `$.xorIter()`, `$.xorAsync()`.
 
-*** Version 0.11.2 - 2021-05-27
+*** Version 0.11.3 - 2021-05-28
 
 Event Emitter (emitter.js):
 - Allow firing original events from object extensions.

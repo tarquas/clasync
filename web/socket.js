@@ -175,7 +175,7 @@ class WebSocket extends $.Emitter {
     Object.assign(context, {
       socket,
       onDisconnectionBound: this.onDisconnection.bind(context),
-      socketSubs: this.$.makeObject()
+      socketSubs: this.$.make()
     });
 
     socket.on('disconnect', context.onDisconnectionBound);
@@ -211,6 +211,12 @@ class WebSocket extends $.Emitter {
   attachToServers(io) {
     if (this.web.http) io.attach(this.web.http);
     if (this.web.https && this.web.https !== this.web.http) io.attach(this.web.https);
+  }
+
+  dropAll() {
+    for (const ctx of $.values(this.socketContexts)) {
+      // ctx.socket.disconnect(false); // BUG: prevents reconnect. how to io.detach?
+    }
   }
 
   async afterInit() {
@@ -259,12 +265,13 @@ class WebSocket extends $.Emitter {
   }
 
   async final() {
+    this.dropAll();
     if (this.adapterMaker) await $.all($.mapIter(this.adapterMaker.adapters, adapter => adapter.finishMq()));
     if (this.primary) await util.promisify(this.io.close).call(this.io);
-    this.removeSubscriptions();
-    delete this.io;
-    delete this.subscriptions;
-    delete this.socketContexts;
+    //this.removeSubscriptions();
+    //delete this.io;
+    //delete this.subscriptions;
+    //delete this.socketContexts;
   }
 
   async join(rooms) {
