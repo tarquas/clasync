@@ -3,33 +3,32 @@ const ClasyncMain = {
     process.stdin.resume();
   },
 
+  processExit(exitCode, reason) {
+    if (exitCode && reason) this.throw(reason, {title: 'CRITICAL'});
+    process.exit(exitCode);
+  },
+
   exit(reason, isSignal) {
+    const numReason = !reason ? 0 : typeof reason === 'number' ? reason : 1;
+
     if (isSignal) {
-      if (this.signalExiting) return process.exit(reason);
+      if (this.signalExiting) return this.processExit(numReason, reason);
       this.signalExiting = true;
     }
 
     if (this.exiting) return this.exiting;
 
     const main = this.mainInstance;
-    if (!main) return process.exit(reason);
+    if (!main) return this.processExit(numReason, reason);
     const inst = this.get(main, this.instance);
     this.finish(main, reason);
 
     this.exiting = (async () => {
       await this.delay(this.gracefulShutdownMsec);
-
-      if (!inst.finaled) {
-        this.throw('Timed out waiting for finalizers', {title: 'CRITICAL'});
-        process.exit(2);
-      }
+      if (!inst.finaled) this.processExit(2, `Timed out waiting for finalizers. Exit Reason:\n${reason}`);
 
       const mainRunning = this.waitMain && !this.mainFinish;
-
-      if (mainRunning) {
-        this.throw('Timed out waiting for main', {title: 'CRITICAL'});
-        process.exit(2);
-      }
+      if (mainRunning) this.processExit(2, `Timed out waiting for main. Exit Reason:\n${reason}`);
     })();
 
     return this.exiting;
@@ -92,8 +91,11 @@ const ClasyncMain = {
       this.throw(err, {title: 'MAIN EXCEPTION', exit: 1});
     }
 
-    const reason = !me ? 1 : await me[this.instance].waitFinaled;
-    process.exit(reason);
+    if (!me) return process.exit(1);
+    const reason = await me[this.instance].waitFinaled;
+    if (!reason) return process.exit(0);
+    if (typeof reason === 'number') return process.exit(reason);
+    process.exit(1);
   },
 
   async autorun(Module) {

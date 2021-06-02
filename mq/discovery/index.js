@@ -33,6 +33,7 @@ class Discovery extends MqDisp {
 
   // broadcast `.info` update
   async update$(info) {
+    if (!this.instances) return;
     info.srcUpdatedAt = new Date();
     await this.pub('instanceUp', {instId: this.instId, info});
   }
@@ -69,6 +70,7 @@ class Discovery extends MqDisp {
     delete this.instances[instId];
     this.nInstances--;
     if (info) await this.onDown(args);
+    if (instId === this.instId) this.$.exit('MQ Discovery: IPC bus lost');
   }
 
   async keepAlive$(info = {}) {

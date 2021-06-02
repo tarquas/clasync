@@ -33,8 +33,10 @@ const ClasyncError = {
   prettyError(err, opts) {
     const {title, exit, when} = typeof opts === 'string' ? {title: opts} : opts || {};
     const at = when || new Date();
-    this.logError(`\n\n--- ${title || 'THROWN'} --- ${new Date(at).toISOString()}`);
-    this.logError(this.getStack(err));
+
+    this.logError(
+      `\n--- ${title || 'THROWN'} --- ${new Date(at).toISOString()}\n${this.getStack(err)}\n`
+    );
   },
 
   throw(err, opts) {

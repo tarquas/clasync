@@ -780,6 +780,10 @@ class MqMongo extends Clasync.Emitter {
     }
   }
 
+  redisError$(err) {
+    this.$.exit('MQ: Redis disconnect');
+  }
+
   async init(sub) {
     if (!this.debugRace) this.debugRace = this.$.getDebug('clasync.mq clasync.mq.race');
 
@@ -793,7 +797,10 @@ class MqMongo extends Clasync.Emitter {
 
     if (this.redis) {
       this.redisPub = redis.createClient(this.redis.connString);
+      this.redisPub.on('error', this.redisError);
+
       this.redisSub = redis.createClient(this.redis.connString);
+      this.redisSub.on('error', this.redisError);
     } else {
       this.capDbMongo = await util.promisify(MongoClient.connect).call(
         MongoClient,
