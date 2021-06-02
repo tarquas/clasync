@@ -69,7 +69,7 @@ class MqMongo extends Clasync.Emitter {
   }
 
   async sub(event, onData) {
-    if (this.finishing) return null;
+    if (this[this.$.instance].final) return null;
     const workerId = this.workerIdNext++;
     const object = {sub: event};
 
@@ -295,6 +295,7 @@ class MqMongo extends Clasync.Emitter {
   }
 
   worker(queue, onData, opts = {}) {
+    if (this[this.$.instance].final) return null;
     const workerId = this.workerIdNext++;
 
     const object = {
@@ -480,7 +481,7 @@ class MqMongo extends Clasync.Emitter {
             try {
               const result = await onData.call(this, decoded, item);
 
-              if (!item.important && this[this.$.instance].final) return null;
+              if (!object.waitImportant && this[this.$.instance].final) return null;
 
               if (result !== false) {
                 await this.remove(object.id);
@@ -488,7 +489,7 @@ class MqMongo extends Clasync.Emitter {
                 await this.requeue(object.id);
               }
             } catch (err) {
-              if (this[this.$.instance].final) return null;
+              if (!object.waitImportant && this[this.$.instance].final) return null;
 
               if (!(await this.error(err, {
                 id: queue,
@@ -504,16 +505,18 @@ class MqMongo extends Clasync.Emitter {
               }
             }
 
-            if (item.important) {
+            if (object.waitImportant) {
               object.resolveImportant();
               object.waitImportant = null;
               object.resolveImportant = null;
             }
           } finally {
             object.id = null;
-            clearTimeout(object.prolong);
+            if (object.prolong) clearTimeout(object.prolong);
           }
         }
+
+        resolve();
       } catch (err) {
         this.unhandle(workerId);
         reject(err);
@@ -806,6 +809,14 @@ class MqMongo extends Clasync.Emitter {
     await sub({mqModel: MqMongoModel.sub({db: this.dbMongo})});
     this.Model = this.model = this.mqModel.model;
 
+    try {
+      await this.model.findOneAndUpdate(
+        {_id: this.$.nullObjectId},
+        {$currentDate: {curDate: true}, $setOnInsert: {_id: this.$.nullObjectId}},
+        {upsert: true, new: true}
+      ).lean().exec();
+    } catch (err) { }
+
     this.subs = this.$.makeObject();
     this.subWait = this.$.makeObject();
     this.workers = this.$.makeObject();
@@ -841,7 +852,7 @@ class MqMongo extends Clasync.Emitter {
     }
   }
 
-  async final(reason) {
+  async beforeFinal(reason) {
     await this.$.all(Object.entries(this.workers).map(async ([workerId, object]) => {
       await this.unhandle(workerId);
       if (!object || !object.id) return;
@@ -853,7 +864,9 @@ class MqMongo extends Clasync.Emitter {
         await this.requeue(object.id);
       }
     }));
+  }
 
+  async final(reason) {
     if (this.finishing) return;
     this.finishing = true;
     this.terminate();

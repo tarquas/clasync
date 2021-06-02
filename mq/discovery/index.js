@@ -6,14 +6,22 @@ const util = require('util');
 class Discovery extends MqDisp {
   static get Master() { return require('./master'); }
 
+  static msecPingAlive = 20000;
+  static msecPingRetry = 5000;
+  static msecAliveExpires = 30000;
+
   prefix = 'discovery_';  // MQ prefix to use for PubSub
   info = {};  // what information to share with other instances at the same MQ bus
   db = null;  // optional `Db.Mongo` instance. if specified, `.info` also will include DB `dataSize`
   trackCpu = false;  // if true, will include CPU load in `.info`: `.cpuAvg`, `.prevCpuAvg`, `.cpuAvgLoad`
 
+  msecPingAlive = this.$.msecPingAlive;
+  msecPingRetry = this.$.msecPingRetry;
+  msecAliveExpires = this.$.msecAliveExpires;
+
   // Events:
   async onUp(p) { return await this.emit('up', p); }  // {instId, info, newInfo}
-  async onDown(p) { return await this.emit('down', p); }  // {instId, info}
+  async onDown(p) { return await this.emit('down', p); }  // {instId, info, reason}
 
   // `.info` additional built-in values:
   //   `.srcCreatedAt`, `.createdAt` -- when instance went alive and joined the bus
@@ -53,12 +61,14 @@ class Discovery extends MqDisp {
     return up;
   }
 
-  instanceDown({instId}) {
+  async instanceDown(args) {
     if (!this.instances) return;
+    const {instId} = args;
     const info = this.instances[instId];
     if (!info) return;
     delete this.instances[instId];
     this.nInstances--;
+    if (info) await this.onDown(args);
   }
 
   async keepAlive$(info = {}) {
@@ -73,9 +83,9 @@ class Discovery extends MqDisp {
 
     try {
       await this.update$(info);
-      if (this.instances) setTimeout(this.keepAlive, this.$.msecPingAlive);
+      if (this.instances) setTimeout(this.keepAlive, this.msecPingAlive);
     } catch (err) {
-      if (this.instances) setTimeout(this.keepAlive, this.$.msecPingRetry, info);
+      if (this.instances) setTimeout(this.keepAlive, this.msecPingRetry, info);
     }
   }
 
@@ -95,8 +105,7 @@ class Discovery extends MqDisp {
     if (!this.instances) return;
     const info = this.instances[instId];
     const args = {instId, info, reason: 'managedShutdown'};
-    this.instanceDown(args);
-    if (info) await this.onDown(args);
+    await this.instanceDown(args);
   }
 
   *listIter() {
@@ -108,10 +117,9 @@ class Discovery extends MqDisp {
       if (Object.hasOwnProperty.call(insts, instId)) {
         const info = insts[instId];
 
-        if (now - info.updatedAt > this.$.msecAliveExpires) {
+        if (now - info.updatedAt > this.msecAliveExpires) {
           const args = {instId, info, reason: 'pingTimeout'};
           this.instanceDown(args);
-          this.emit('down', args);
         } else {
           yield [instId, info];
         }
@@ -162,7 +170,7 @@ class Discovery extends MqDisp {
 
   checkExpiresJob$() {
     if (!this.checkExpires()) return;
-    setTimeout(this.checkExpiresJob, this.$.msecAliveExpires);
+    setTimeout(this.checkExpiresJob, this.msecAliveExpires);
   }
 
   async init() {
@@ -178,7 +186,7 @@ class Discovery extends MqDisp {
     Object.assign(this.info, {srcCreatedAt: new Date()});
     this.instanceUpdate({instId});
     await this.keepAlive$(this.info);
-    setTimeout(this.checkExpiresJob, this.$.msecAliveExpires);
+    setTimeout(this.checkExpiresJob, this.msecAliveExpires);
 
     await this.pub('pollInstances', {});
   }
@@ -190,9 +198,5 @@ class Discovery extends MqDisp {
     await this.pub('instanceDown', {instId});
   }
 }
-
-Discovery.msecPingAlive = 30000;
-Discovery.msecPingRetry = 5000;
-Discovery.msecAliveExpires = 60000;
 
 module.exports = Discovery;

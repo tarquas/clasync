@@ -447,3 +447,13 @@ Overall (mq/; web/):
 
 Functional (static/func.js):
 - Add `.scanObject()`, `.scanObjectAll()`.
+
+*** Version 0.11.4 - 2021-06-02
+
+MQ Discovery (mq/discovery.js):
+- Reduce defaults for crashed instances: `$.msecPingAlive`, `$.msecAliveExpires`;
+- Correctly report crashed instances in `.onDown()`.
+
+MQ Mongo-based (mq/mongo/):
+- Fix concurrency on first DB initialization;
+- Improve stability on finalization.
