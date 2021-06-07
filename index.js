@@ -18,7 +18,7 @@ class Clasync extends ClasyncBase {
   static get $() {
     if (!Clasync.staticSelfBound.has(this)) {
       for (let o = this; o; o = Object.getPrototypeOf(o)) {
-        bind$(this, o);
+        bind$(this, o, o);
       }
 
       Clasync.staticSelfBound.add(this);
@@ -189,7 +189,7 @@ async function ClasyncCtor(t, cfg, $$) {
     const sub = Clasync.subSet.bind(t);
 
     for (const o of up) {
-      bind$(t, o);
+      bind$(t, o, t);
     }
 
     for (const init of inits) {
@@ -231,13 +231,14 @@ Clasync.debugIndex = Clasync.invert(Clasync.debugTopics);
 Clasync.rxSelfBind = /^([^]+)\$$/;
 Clasync.staticSelfBound = new WeakSet();
 
-function bind$(obj, inst) {
+function bind$(obj, inst, to) {
   for (const name of Object.getOwnPropertyNames(inst)) {
     const ents = name.match(Clasync.rxSelfBind);
     if (!ents) continue;
     const func = inst[name];
     if (typeof func !== 'function') continue;
-    inst[ents[1]] = func.bind(obj);
+    const nn = ents[1];
+    if (!Object.hasOwnProperty.call(to, nn)) to[nn] = func.bind(obj);
   }
 }
 

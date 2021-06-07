@@ -84,7 +84,7 @@ Web (web/rest.js):
 
 *** Version 0.4.0 - 2019-06-19
 
-Overall
+Overall:
 - Prefer `$.makeObject()` for creating dictionaries.
 
 MQ Dispatcher (mq/disp.js):
@@ -92,7 +92,7 @@ MQ Dispatcher (mq/disp.js):
 
 *** Version 0.5.1 - 2019-08-07
 
-Overall
+Overall:
 - Add all classes to tree under base class, f.x. `require('clasync').Web` is same as `require('clasync/web')`.
 
 Functional (static/func.js):
@@ -346,7 +346,7 @@ Functional (static/func.js):
 
 *** Version 0.10.1 - 2020-12-22
 
-Overall
+Overall:
 - Improve `...$()` self-bind isolation and class inheritance.
 
 Main module (index.js; static/main.js):
@@ -448,7 +448,7 @@ Overall (mq/; web/):
 Functional (static/func.js):
 - Add `.scanObject()`, `.scanObjectAll()`.
 
-*** Version 0.11.5 - 2021-06-03
+*** Version 0.11.6 - 2021-06-07
 
 MQ Discovery (mq/discovery.js):
 - Reduce defaults for crashed instances: `$.msecPingAlive`, `$.msecAliveExpires`;
@@ -459,3 +459,6 @@ MQ Mongo-based (mq/mongo/):
 - Fix concurrency on first DB initialization;
 - Improve stability on finalization;
 - Add Redis error handler.
+
+Overall:
+- Fix `...$()` self-bind isolation and class inheritance.
