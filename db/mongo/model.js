@@ -32,7 +32,7 @@ class DbMongoModel extends Clasync.Emitter {
     if (this.db.prefix) schema.options.collection = `${this.db.prefix}${collection}`;
     let {name} = this;
     if (!name) this.name = name = collection;
-    this.model = this.Model = this.db.conn.model(name, schema);
+    this.model = this.Model = this.db.conn.model(name, schema); // TODO: existing
   }
 }
 
