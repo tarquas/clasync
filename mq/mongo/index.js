@@ -373,7 +373,6 @@ class MqMongo extends Clasync.Emitter {
             }
 
             if (sendSleep && this.sleepEvent) {
-console.log('sleep', (global.ssleep ? ++global.ssleep : global.ssleep = 1));
               sendSleep = false;
               const obj = {queue, delay};
               this.pub(`${queue}:${this.queuePfx}${this.sleepEvent}`, obj);
@@ -427,7 +426,6 @@ console.log('sleep', (global.ssleep ? ++global.ssleep : global.ssleep = 1));
 
             continue;
           }
-console.log('new', (global.nnew ? ++global.nnew : global.nnew = 1));
 
           if (opts.topic && item.topic) {
             const raceProj = {_id: 1};
