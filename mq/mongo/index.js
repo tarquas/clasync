@@ -41,12 +41,14 @@ class MqMongo extends Clasync.Emitter {
 
   static get type() { return 'mq'; }
 
-  get pubsubName() { return 'pubsub'; }
-  get queueName() { return 'pubsubQueue'; }
-  get queuePfx() { return 'queue:'; }
-  get newTaskEvent() { return 'newTask'; }
-  get sleepEvent() { return 'sleep'; }
-  get discardEvent() { return 'discard'; }
+  pubsubName = 'pubsub';
+  queueName = 'pubsubQueue';
+  queuePfx = 'queue:';
+  newTaskEvent = 'newTask';
+  sleepEvent = 'sleep';
+  discardEvent = 'discard';
+  ownNewTaskEvent = true;
+  ownSleepEvent = true;
 
   async pub(event, payload) {
     if (this.finishing) return null;
@@ -91,7 +93,7 @@ class MqMongo extends Clasync.Emitter {
 
   async signalQueue(args) {
     const {queue} = args;
-    this.pub(`${queue}:${this.queuePfx}${this.newTaskEvent}`, args);
+    if (this.ownNewTaskEvent) this.pub(`${queue}:${this.queuePfx}${this.newTaskEvent}`, args);
     const inserted = await this.pub(`${this.queuePfx}${this.newTaskEvent}`, args);
     return inserted;
   }
@@ -375,7 +377,7 @@ class MqMongo extends Clasync.Emitter {
             if (sendSleep && this.sleepEvent) {
               sendSleep = false;
               const obj = {queue, delay};
-              this.pub(`${queue}:${this.queuePfx}${this.sleepEvent}`, obj);
+              if (this.ownSleepEvent) this.pub(`${queue}:${this.queuePfx}${this.sleepEvent}`, obj);
               this.pub(`${this.queuePfx}${this.sleepEvent}`, obj);
             }
 
