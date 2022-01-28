@@ -55,14 +55,13 @@ class MqMongo extends Clasync.Emitter {
 
     if (this.redisPub) {
       const json = JSON.stringify(payload);
-      await new Promise(ok => this.redisPub.publish(event, json, ok));
+      await this.redisPub.publish(event, json);
       return {event, message: payload};
     }
 
     if (this.waitPubsubReady) await this.waitPubsubReady;
 
-    const inserted = await util.promisify(this.pubsubColl.insertOne).call(
-      this.pubsubColl,
+    const inserted = await this.pubsubColl.insertOne(
       {event, message: payload},
       {safe: true}
     );
@@ -79,7 +78,7 @@ class MqMongo extends Clasync.Emitter {
 
     if (!subHandlers) {
       if (this.redisSub) {
-        await new Promise(ok => this.redisSub.subscribe(event, ok));
+        await this.redisSub.subscribe(event, this.redisMessageBound);
       }
 
       this.subs[event] = subHandlers = this.$.makeObject();
@@ -609,7 +608,7 @@ class MqMongo extends Clasync.Emitter {
           delete this.subs[object.sub];
 
           if (this.redisSub) {
-            await new Promise(ok => this.redisSub.unsubscribe(object.sub, ok));
+            await this.redisSub.unsubscribe(object.sub);
           }
 
           object.sub = null;
@@ -672,7 +671,7 @@ class MqMongo extends Clasync.Emitter {
     return true;
   }
 
-  redisMessage(event, message) {
+  redisMessage(message, event) {
     this.dispatchMessage(event, JSON.parse(message))
     .catch((err) => {
       this.$.throw(err, 'MQ Redis PubSub Handler Fail');
@@ -689,11 +688,10 @@ class MqMongo extends Clasync.Emitter {
 
         if (!coll) {
           try {
-            coll = await util.promisify(db.collection).call(db, this.pubsubName, {strict: true});
+            coll = await db.collection(this.pubsubName, {strict: true});
           } catch (err) { }
 
-          if (!coll) coll = await util.promisify(db.createCollection).call(
-            db,
+          if (!coll) coll = await db.createCollection(
             this.pubsubName,
 
             {
@@ -715,13 +713,13 @@ class MqMongo extends Clasync.Emitter {
         ).sort({_id: -1}).limit(1);
 
         try {
-          this.latest = await util.promisify(query.next).call(query);
+          this.latest = await query.next();
         } finally {
           query.close();
         }
 
         if (!this.latest) {
-          const docs = await util.promisify(coll.insertOne).call(coll, {
+          const docs = await coll.insertOne({
             _id: this.$.nullObjectId,
             dummy: true,
             curDate: new Date()
@@ -754,7 +752,7 @@ class MqMongo extends Clasync.Emitter {
         try {
           while (!this.finishing) {
             this.latest = await this.$.race([
-              util.promisify(cursor.next).call(cursor),
+              cursor.next(),
               this.waitTerminate
             ]);
 
@@ -803,13 +801,16 @@ class MqMongo extends Clasync.Emitter {
 
     if (this.redis) {
       this.redisPub = redis.createClient(this.redis.connString);
+      await this.redisPub.connect();
       this.redisPub.on('error', this.redisError);
 
       this.redisSub = redis.createClient(this.redis.connString);
+      await this.redisSub.connect();
       this.redisSub.on('error', this.redisError);
+
+      this.redisMessageBound = this.redisMessage.bind(this);
     } else {
-      this.capDbMongo = await util.promisify(MongoClient.connect).call(
-        MongoClient,
+      this.capDbMongo = await MongoClient.connect(
         this.capDb ? this.capDb.connString : this.db.connString,
 
         {
@@ -845,10 +846,7 @@ class MqMongo extends Clasync.Emitter {
     this.workerProlongVisibilityBound = this.workerProlongVisibility.bind(this);
     await this.sub(this.queuePfx + this.newTaskEvent, this.takeFreeWorker);
 
-    if (this.redisSub) {
-      this.redisMessageBound = this.redisMessage.bind(this);
-      this.redisSub.on('message', this.redisMessageBound);
-    } else {
+    if (!this.redisSub) {
       this.waitPubsubReady = new Promise((resolve) => {
         this.pubsubReady = resolve;
       });

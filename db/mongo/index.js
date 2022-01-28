@@ -93,12 +93,12 @@ DbMongo.ObjectId = mongoose.Types.ObjectId;
 DbMongo.hardOptions = {
   useNewUrlParser: true,
   useUnifiedTopology: true,
-  bufferMaxEntries: 0
+  //bufferMaxEntries: 0
 };
 
 DbMongo.softOptions = {
-  useCreateIndex: true,
-  useFindAndModify: false
+  //useCreateIndex: true,
+  //useFindAndModify: false
 };
 
 module.exports = DbMongo;

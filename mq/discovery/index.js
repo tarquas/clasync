@@ -79,7 +79,7 @@ class Discovery extends MqDisp {
 
     if (this.db) {
       const db = this.$.get(this.db.conn, 'db');
-      const stats = db && (await util.promisify(db.stats).call(db));
+      const stats = db && (await db.stats());
       if (stats) info.dbDataSize = stats.dataSize;
     }
 
