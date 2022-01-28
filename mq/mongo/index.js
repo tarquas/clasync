@@ -800,11 +800,11 @@ class MqMongo extends Clasync.Emitter {
     this.dbMongo[this.$.instance].detached = true;
 
     if (this.redis) {
-      this.redisPub = redis.createClient(this.redis.connString);
+      this.redisPub = redis.createClient({url: this.redis.connString});
       await this.redisPub.connect();
       this.redisPub.on('error', this.redisError);
 
-      this.redisSub = redis.createClient(this.redis.connString);
+      this.redisSub = this.redisPub.duplicate();
       await this.redisSub.connect();
       this.redisSub.on('error', this.redisError);
 
@@ -864,7 +864,7 @@ class MqMongo extends Clasync.Emitter {
   }
 
   async beforeFinal(reason) {
-    await this.$.all(Object.entries(this.workers).map(async ([workerId, object]) => {
+    if (this.workers) await this.$.all(Object.entries(this.workers).map(async ([workerId, object]) => {
       await this.unhandle(workerId);
       if (!object || !object.id) return;
 
@@ -880,7 +880,7 @@ class MqMongo extends Clasync.Emitter {
   async final(reason) {
     if (this.finishing) return;
     this.finishing = true;
-    this.terminate();
+    if (this.terminate) this.terminate();
     this.terminate = null;
     this.waitTerminate = null;
     this.pubsubCollReady = null;
@@ -896,13 +896,14 @@ class MqMongo extends Clasync.Emitter {
 
     await this.$.finish(this.dbMongo, reason);
 
+    if (this.redisPub) this.redisPub.quit();
+
     if (this.redisSub) {
       this.redisSub.removeListener('message', this.redisMessageBound);
-      this.redisPub.quit();
       this.redisSub.quit();
-    } else {
-      this.capDbMongo.close();
     }
+
+    if (this.capDbMongo) this.capDbMongo.close();
   }
 }
 
