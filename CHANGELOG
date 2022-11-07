@@ -462,3 +462,8 @@ MQ Mongo-based (mq/mongo/):
 
 Overall:
 - Fix `...$()` self-bind isolation and class inheritance.
+
+*** Version 0.11.11 - 2022-11-07
+
+Overall:
+- Update `dependencies` versions in `package.json`.
