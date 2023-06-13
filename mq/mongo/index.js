@@ -397,7 +397,7 @@ class MqMongo extends Clasync.Emitter {
             continue;
           }
 
-          if (item.nTriesLeft === -1) {
+          if (item.nTriesLeft < 0) {
             if (item.failQueue) {
               await this.model.updateOne(
                 {_id: item._id},
