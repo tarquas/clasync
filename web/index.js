@@ -23,7 +23,11 @@ class Web extends Clasync.Emitter {
   static get Socket() { return require('./socket'); }
   static get SocketMq() { return require('./socket-mq'); }
 
-  createServers() {
+  async onAppCreated(bind) {
+    // virtual
+  }
+
+  async createServers() {
     const bind = `WEB ${this.bind}`;
     const exists = Web.binds[bind];
 
@@ -33,6 +37,8 @@ class Web extends Clasync.Emitter {
     } else {
       this.app = express();
       this.router = new express.Router();
+      await this.onAppCreated(bind);
+
       this.app.use(this.router);
 
       if (this.httpBind && (this.httpBind === this.httpsBind || this.httpsBind === true)) {
@@ -104,7 +110,7 @@ class Web extends Clasync.Emitter {
   async init() {
     const multer = Multer({dest: os.tmpdir(), limits: this.limits});
     this.bind = this.httpBind || this.httpsBind;
-    this.createServers();
+    await this.createServers();
   }
 
   async afterInit() {

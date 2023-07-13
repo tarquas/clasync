@@ -467,3 +467,8 @@ Overall:
 
 Overall:
 - Update `dependencies` versions in `package.json`.
+
+*** Version 0.11.12 - 2023-07-13
+
+Web (web/index.js):
+- Add `onAppCreated()` virtual method.
