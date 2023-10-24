@@ -68,6 +68,8 @@ class DbMongo extends Clasync.Emitter {
       connOpts
     );
 
+    await this.conn.client.db().collections();
+
     this.conn.on('disconnected', this.onDisconnected.bind(this));
   }
 

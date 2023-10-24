@@ -472,3 +472,8 @@ Overall:
 
 Web (web/index.js):
 - Add `onAppCreated()` virtual method.
+
+*** Version 0.11.13 - 2023-07-13
+
+DB Mongo (db/mongo/):
+- Ensure the DB connection for successful `init`.
